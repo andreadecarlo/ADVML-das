@@ -9,6 +9,20 @@ from typing import List, Dict, Tuple, Optional
 from transformers import PreTrainedTokenizer
 
 
+def _token_position_from_char_offset(
+    tokenizer: PreTrainedTokenizer, prompt: str, char_offset: int
+) -> Optional[int]:
+    """Return token index that contains the character at char_offset (0-based)."""
+    enc = tokenizer(prompt, add_special_tokens=False, return_offsets_mapping=True)
+    offset_mapping = enc.get("offset_mapping")
+    if not offset_mapping:
+        return None
+    for i, (start, end) in enumerate(offset_mapping):
+        if start <= char_offset < end:
+            return i
+    return None
+
+
 def find_write_down_token_position(
     tokenizer: PreTrainedTokenizer,
     prompt: str,
@@ -27,14 +41,13 @@ def find_write_down_token_position(
     Returns:
         Token position of the write-down value, or None if not found
     """
-    # Split prompt into lines
+    # Split prompt into lines (prompt is scratchpad-only: step 0 = first line, step 1 = second, etc.)
     lines = prompt.split('\n')
     
-    # Step 0 is line 1 (after the question), step 1 is line 2, etc.
-    if step + 1 >= len(lines):
+    if step >= len(lines):
         return None
     
-    step_line = lines[step + 1]
+    step_line = lines[step]
     
     # Find "Write down X" in this line
     write_down_text = f"Write down {write_down_value}"
@@ -64,7 +77,16 @@ def find_write_down_token_position(
         if value_start + len(value_tokens) <= len(tokens):
             if tokens[value_start:value_start+len(value_tokens)] == value_tokens:
                 return value_start
-    
+
+    # Fallback: find by character offset (robust to tokenizer differences)
+    prefix = f"Write down {write_down_value}"
+    idx = step_line.find(prefix)
+    if idx != -1:
+        # Offset of first char of the value (after "Write down ")
+        value_char_in_line = idx + len("Write down ")
+        line_start = sum(len(line) + 1 for line in lines[:step])  # +1 for newline
+        char_offset_in_prompt = line_start + value_char_in_line
+        return _token_position_from_char_offset(tokenizer, prompt, char_offset_in_prompt)
     return None
 
 
@@ -86,14 +108,13 @@ def find_carry_over_token_position(
     Returns:
         Token position of the carry-over value, or None if not found
     """
-    # Split prompt into lines
+    # Split prompt into lines (prompt is scratchpad-only: step 0 = first line, step 1 = second, etc.)
     lines = prompt.split('\n')
     
-    # Step 0 is line 1 (after the question), step 1 is line 2, etc.
-    if step + 1 >= len(lines):
+    if step >= len(lines):
         return None
     
-    step_line = lines[step + 1]
+    step_line = lines[step]
     
     # Find "carry over X" in this line
     carry_text = f"carry over {carry_value}"
@@ -122,7 +143,15 @@ def find_carry_over_token_position(
         if value_start + len(value_tokens) <= len(tokens):
             if tokens[value_start:value_start+len(value_tokens)] == value_tokens:
                 return value_start
-    
+
+    # Fallback: find by character offset (robust to tokenizer differences)
+    prefix = f"carry over {carry_value}"
+    idx = step_line.find(prefix)
+    if idx != -1:
+        value_char_offset = idx + len("carry over ")
+        line_start = sum(len(line) + 1 for line in lines[:step])
+        char_offset_in_prompt = line_start + value_char_offset
+        return _token_position_from_char_offset(tokenizer, prompt, char_offset_in_prompt)
     return None
 
 
