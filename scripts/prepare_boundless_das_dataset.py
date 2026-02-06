@@ -151,6 +151,62 @@ def prepare_boundless_das_dataset(
         # Labels = counterfactual (source) sequence for IIA: after intervention we predict source
         eos = tokenizer.eos_token_id if tokenizer.eos_token_id is not None else tokenizer.pad_token_id
         labels = source_input_ids[1:] + [eos]
+
+        # Identify which label positions correspond to the final multiplication result
+        # in the counterfactual scratchpad ("We finally get {product}.").
+        # We do this once here (with access to text + offsets) and store the label
+        # indices so that training/eval can compute IIA specifically on the result.
+        result_label_positions: List[int] = []
+        final_prefix = "We finally get "
+        product_str: Optional[str] = None
+        for line in counterfactual["scratchpad"].split("\n"):
+            if line.startswith(final_prefix):
+                # Extract everything after the prefix up to the first '.' (if present)
+                rest = line[len(final_prefix) :]
+                dot_idx = rest.find(".")
+                if dot_idx != -1:
+                    product_str = rest[:dot_idx]
+                else:
+                    product_str = rest
+                product_str = product_str.strip()
+                break
+
+        if product_str:
+            try:
+                # Locate the product substring inside the full source_prompt
+                combined_prefix = final_prefix + product_str
+                idx_in_prompt = source_prompt.index(combined_prefix)
+                product_char_start = idx_in_prompt + len(final_prefix)
+                product_char_end = product_char_start + len(product_str)
+
+                # Tokenize with offsets to map characters -> token indices.
+                enc = tokenizer(
+                    source_prompt,
+                    add_special_tokens=True,
+                    return_offsets_mapping=True,
+                )
+                offset_mapping = enc.get("offset_mapping")
+                if offset_mapping:
+                    # offset_mapping length matches len(source_input_ids)
+                    for tok_idx, (start, end) in enumerate(offset_mapping):
+                        if start is None or end is None:
+                            continue
+                        # Select tokens that overlap the product character span.
+                        if end <= product_char_start or start >= product_char_end:
+                            continue
+                        # source_input_ids = [BOS, t0, t1, ..., t_{n-1}]
+                        # labels          = [t0,  t1, ..., t_{n-1}, eos]
+                        # So label index = tok_idx - 1 (for non-BOS tokens).
+                        if tok_idx == 0:
+                            # This is typically BOS; there is no corresponding label.
+                            continue
+                        label_pos = tok_idx - 1
+                        if 0 <= label_pos < len(labels):
+                            result_label_positions.append(int(label_pos))
+            except ValueError:
+                # If we can't find the substring, just leave result_label_positions empty.
+                pass
+
         step_name = ["ones", "tens", "hundreds"][step] if step < 3 else f"step_{step}"
         processed.append({
             "input_ids": base_input_ids,
@@ -160,6 +216,7 @@ def prepare_boundless_das_dataset(
             "step": step,
             "step_name": step_name,
             "intervention_type": intervention_type,
+            "result_label_positions": result_label_positions,
         })
     random.shuffle(processed)
     n = len(processed)

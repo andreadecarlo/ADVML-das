@@ -5,6 +5,7 @@ import csv
 import json
 import argparse
 import logging
+import re
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -13,7 +14,7 @@ import torch
 # Suppress verbose model/tokenizer loading logs
 logging.getLogger("transformers").setLevel(logging.WARNING)
 logging.getLogger("huggingface_hub").setLevel(logging.WARNING)
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, Subset
 from torch.nn import CrossEntropyLoss
 from tqdm import tqdm, trange
 from transformers import AutoTokenizer, AutoModelForCausalLM, get_linear_schedule_with_warmup
@@ -45,20 +46,124 @@ def simple_boundless_das_position_config(model_type, intervention_type: str, lay
     return config
 
 
-def compute_iia(logits: torch.Tensor, labels: torch.Tensor, last_token_only: bool = True) -> float:
-    # Interchange Intervention Accuracy: after intervention, does the model predict the counterfactual (source) next token?
-    if last_token_only:
-        pred = torch.argmax(logits[:, -1], dim=-1)
-        actual = labels[:, -1]
+def compute_iia(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    last_token_only: bool = True,
+    result_mask: Optional[torch.Tensor] = None,
+    example_wise: bool = False,
+) -> float:
+    """
+    Interchange Intervention Accuracy.
+
+    By default (last_token_only=True and result_mask=None), this checks whether the
+    final predicted token matches the final label token. If a result_mask is provided,
+    IIA is computed only over the positions where result_mask == True (intended here
+    to be the tokens of the multiplication result in the scratchpad).
+    """
+    vocab_size = logits.size(-1)
+    if result_mask is not None:
+        # Use only positions flagged by result_mask.
+        # logits, labels, result_mask: (B, T, V), (B, T), (B, T)
+        if example_wise:
+            # Example-wise IIA: for each example, consider it correct iff *all*
+            # masked positions with labels != -100 are predicted correctly.
+            # Then average these 0/1 scores over examples that have at least
+            # one such position.
+            preds = torch.argmax(logits, dim=-1)  # (B, T)
+            B = preds.size(0)
+            correct_examples = 0.0
+            counted = 0.0
+            for b in range(B):
+                mask_b = result_mask[b].bool() & (labels[b] != -100)
+                if not mask_b.any():
+                    continue
+                counted += 1.0
+                if (preds[b][mask_b] == labels[b][mask_b]).all():
+                    correct_examples += 1.0
+            if counted == 0.0:
+                return 0.0
+            return float(correct_examples / counted)
+        else:
+            logits_flat = logits.view(-1, vocab_size)
+            labels_flat = labels.view(-1)
+            mask_flat = result_mask.view(-1).bool()
+            valid = (labels_flat != -100) & mask_flat
+            if valid.sum() == 0:
+                return 0.0
+            pred = torch.argmax(logits_flat[valid], dim=-1)
+            actual = labels_flat[valid]
+            return (pred == actual).float().mean().item()
     else:
-        shift_logits = logits[..., :-1, :].contiguous().view(-1, logits.size(-1))
-        shift_labels = labels[..., 1:].contiguous().view(-1)
-        pred = torch.argmax(shift_logits, dim=-1)
-        actual = shift_labels
-    valid = actual != -100
-    if valid.sum() == 0:
+        if last_token_only:
+            pred = torch.argmax(logits[:, -1], dim=-1)
+            actual = labels[:, -1]
+        else:
+            shift_logits = logits[..., :-1, :].contiguous().view(-1, vocab_size)
+            shift_labels = labels[..., 1:].contiguous().view(-1)
+            pred = torch.argmax(shift_logits, dim=-1)
+            actual = shift_labels
+        valid = actual != -100
+        if valid.sum() == 0:
+            return 0.0
+        return (pred[valid] == actual[valid]).float().mean().item()
+
+
+def _extract_result_int(text: str) -> Optional[int]:
+    """
+    Extract an integer result from decoded text, similar in spirit to
+    prealign_multiplication.extract_answer: take the last integer in the first
+    sentence so that formats like "The product is 0014." and "0014." both map
+    to the same value.
+    """
+    # Restrict to first sentence (up to first ., ?, or !)
+    m = re.search(r"[.!?]", text)
+    if m:
+        first_sentence = text[: m.end()]
+    else:
+        first_sentence = text
+    matches = re.findall(r"\b(\d+)\b", first_sentence)
+    if not matches:
+        return None
+    return int(matches[-1])
+
+
+def compute_resultwise_iia(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    result_mask: Optional[torch.Tensor],
+    tokenizer,
+) -> float:
+    """
+    Example-wise "same result" accuracy:
+    - For each example, gather the label/prediction tokens at result_mask==True
+      (and label != -100).
+    - Decode both spans, extract an integer from each, and count the example as
+      correct iff the integers are equal.
+    - Return the fraction of such examples that are correct.
+    """
+    if result_mask is None:
         return 0.0
-    return (pred[valid] == actual[valid]).float().mean().item()
+    preds = torch.argmax(logits, dim=-1)  # (B, T)
+    B = preds.size(0)
+    correct_examples = 0.0
+    counted = 0.0
+    for b in range(B):
+        mask_b = result_mask[b].bool() & (labels[b] != -100)
+        if not mask_b.any():
+            continue
+        counted += 1.0
+        label_ids = labels[b][mask_b].detach().cpu()
+        pred_ids = preds[b][mask_b].detach().cpu()
+        label_text = tokenizer.decode(label_ids, skip_special_tokens=True)
+        pred_text = tokenizer.decode(pred_ids, skip_special_tokens=True)
+        label_int = _extract_result_int(label_text)
+        pred_int = _extract_result_int(pred_text)
+        if label_int is not None and pred_int is not None and label_int == pred_int:
+            correct_examples += 1.0
+    if counted == 0.0:
+        return 0.0
+    return float(correct_examples / counted)
 
 
 def load_boundless_das_splits(
@@ -125,17 +230,26 @@ def _example_to_item(ex: Dict, pad_id: int, max_length: Optional[int]) -> Dict[s
     source_input_ids = ex["source_input_ids"]
     labels = ex["labels"]
     pos = ex["intervention_ids"][0]
+    # Optional: label positions corresponding to the multiplication result tokens
+    result_positions = ex.get("result_label_positions")
     if max_length:
         input_ids = input_ids[:max_length]
         source_input_ids = source_input_ids[:max_length]
         labels = labels[:max_length]
         pos = min(pos, len(input_ids) - 1)
-    return {
+        if result_positions is not None:
+            # Drop any positions that fall beyond the truncated label length.
+            result_positions = [p for p in result_positions if p < max_length]
+    item: Dict[str, torch.Tensor] = {
         "input_ids": torch.tensor(input_ids, dtype=torch.long),
         "source_input_ids": torch.tensor(source_input_ids, dtype=torch.long),
         "labels": torch.tensor(labels, dtype=torch.long),
         "intervention_position": int(pos),
     }
+    if result_positions:
+        # Keep as a simple list of ints; collate will build a mask.
+        item["result_label_positions"] = result_positions
+    return item
 
 
 class LazyBoundlessDASDataset(Dataset):
@@ -152,31 +266,65 @@ class LazyBoundlessDASDataset(Dataset):
         self.jsonl_path = jsonl_path
         self.pad_id = pad_id
         self.max_length = max_length
-        # One pass: build list of byte offsets for lines that pass the filter
+        # One pass: build list of byte offsets for lines that pass the filter.
+        # We eagerly JSON-parse each non-empty line so that any malformed JSON
+        # is caught (and skipped with a warning) here rather than crashing
+        # later inside __getitem__ during training/validation.
         self._offsets: List[int] = []
         with open(jsonl_path) as f:
             offset = 0
-            for line in f:
+            for line_idx, line in enumerate(f):
                 start = offset
                 offset += len(line.encode("utf-8"))
+                # Skip blank/whitespace-only lines
                 if not line.strip():
                     continue
-                if intervention_type is not None or step is not None:
+                try:
                     ex = json.loads(line)
-                    if intervention_type is not None and ex.get("intervention_type") != intervention_type:
-                        continue
-                    if step is not None and ex.get("step") != step:
-                        continue
+                except json.JSONDecodeError as e:
+                    logging.warning(
+                        "LazyBoundlessDASDataset: skipping invalid JSON on line %d of %s: %s",
+                        line_idx + 1,
+                        jsonl_path,
+                        e,
+                    )
+                    continue
+                if intervention_type is not None and ex.get("intervention_type") != intervention_type:
+                    continue
+                if step is not None and ex.get("step") != step:
+                    continue
                 self._offsets.append(start)
 
     def __len__(self) -> int:
         return len(self._offsets)
 
     def __getitem__(self, i: int) -> Dict[str, torch.Tensor]:
+        # Robustly load the i-th example. Even though __init__ already filters
+        # out invalid/blank JSON lines when building _offsets, we defensively
+        # handle the case where the underlying file has changed or contains
+        # unexpected content by scanning forward to the next valid JSON line.
         with open(self.jsonl_path) as f:
             f.seek(self._offsets[i])
-            line = f.readline()
-        ex = json.loads(line)
+            while True:
+                line = f.readline()
+                if not line:
+                    raise IndexError(
+                        f"LazyBoundlessDASDataset: reached EOF while reading index {i} "
+                        f"from {self.jsonl_path}"
+                    )
+                if not line.strip():
+                    continue
+                try:
+                    ex = json.loads(line)
+                    break
+                except json.JSONDecodeError as e:
+                    logging.warning(
+                        "LazyBoundlessDASDataset: skipping invalid JSON while reading index %d of %s: %s",
+                        i,
+                        self.jsonl_path,
+                        e,
+                    )
+                    continue
         return _example_to_item(ex, self.pad_id, self.max_length)
 
 
@@ -240,12 +388,31 @@ def collate_boundless_das(batch: List[Dict], pad_id: int):
         labels_list.append(l)
     labels = torch.stack(labels_list)
     intervention_positions = torch.tensor([b["intervention_position"] for b in batch], dtype=torch.long, device=device)
-    return {
+
+    # Optional mask highlighting positions that correspond to the multiplication result
+    # (as precomputed in prepare_boundless_das_dataset). We build it if *any* example
+    # in the batch has non-empty result_label_positions.
+    result_mask = None
+    any_result_positions = any(
+        isinstance(b.get("result_label_positions"), list) and len(b["result_label_positions"]) > 0
+        for b in batch
+    )
+    if any_result_positions:
+        result_mask = torch.zeros((len(batch), max_len), dtype=torch.bool, device=device)
+        for i, b in enumerate(batch):
+            for p in b.get("result_label_positions", []):
+                if 0 <= p < max_len:
+                    result_mask[i, p] = True
+
+    out = {
         "input_ids": input_ids,
         "source_input_ids": source_input_ids,
         "labels": labels,
         "intervention_positions": intervention_positions,
     }
+    if result_mask is not None:
+        out["result_mask"] = result_mask
+    return out
 
 
 def main():
@@ -272,6 +439,29 @@ def main():
         help="Use HuggingFace datasets for memory-mapped loading (default: True when datasets installed)",
     )
     parser.add_argument("--no-use-hf-dataset", action="store_false", dest="use_hf_dataset")
+        "--iia-examplewise",
+        action="store_true",
+        help=(
+            "If set, compute IIA as example-wise all-or-nothing over result_mask "
+            "positions (an example counts as correct only if *all* masked result "
+            "tokens are predicted correctly). Default is per-token accuracy."
+        ),
+    )
+    parser.add_argument(
+        "--iia-resultwise",
+        action="store_true",
+        help=(
+            "If set, compute IIA based on equality of the decoded numeric result "
+            "between labels and predictions over result_mask positions (similar to "
+            "prealign_multiplication.py). This takes precedence over --iia-examplewise."
+        ),
+    )
+    parser.add_argument(
+        "--max-train-samples",
+        type=int,
+        default=None,
+        help="If set, cap the number of training examples to this many (for faster experiments).",
+    )
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -304,8 +494,10 @@ def main():
     elif jsonl_train.exists():
         train_ds = LazyBoundlessDASDataset(
             data_path / "boundless_das_train.jsonl",
-            pad_id, args.max_length,
-            intervention_type=args.intervention_type, step=args.step,
+            pad_id,
+            args.max_length,
+            intervention_type=args.intervention_type,
+            step=args.step,
         )
         val_ds = LazyBoundlessDASDataset(
             data_path / "boundless_das_val.jsonl",
@@ -328,6 +520,12 @@ def main():
         train_ds = BoundlessDASDataset(train_ex, pad_id, args.max_length)
         val_ds = BoundlessDASDataset(val_ex, pad_id, args.max_length)
         test_ds = BoundlessDASDataset(test_ex, pad_id, args.max_length)
+
+    # Optionally cap the number of training samples for faster runs.
+    if args.max_train_samples is not None and len(train_ds) > args.max_train_samples:
+        max_n = args.max_train_samples
+        train_ds = Subset(train_ds, list(range(max_n)))
+        print(f"Capped training set to {max_n} examples (from {len(val_ds)} val / {len(test_ds)} test) {log_tag}")
 
     if len(train_ds) == 0:
         raise ValueError(
@@ -404,6 +602,7 @@ def main():
     # Training loop with IIA streaming
     last_train_iia = None
     last_mean_loss = None
+    debug_samples_logged = 0
     for epoch in trange(args.epochs, desc="Epoch"):
         epoch_iia_sum = 0.0
         epoch_iia_count = 0
@@ -425,7 +624,22 @@ def main():
             )
             logits = counterfactual_outputs.logits
             labels_b = batch["labels"]
-            iia = compute_iia(logits, labels_b, last_token_only=True)
+            batch_result_mask = batch.get("result_mask")
+            if args.iia_resultwise and batch_result_mask is not None:
+                iia = compute_resultwise_iia(
+                    logits,
+                    labels_b,
+                    batch_result_mask,
+                    tokenizer,
+                )
+            else:
+                iia = compute_iia(
+                    logits,
+                    labels_b,
+                    last_token_only=True,
+                    result_mask=batch_result_mask,
+                    example_wise=args.iia_examplewise,
+                )
             epoch_iia_sum += iia * b_s
             epoch_iia_count += b_s
             loss = calculate_loss(logits, labels_b, intervenable)
@@ -434,6 +648,80 @@ def main():
             epoch_loss_sum += loss.item() * b_s
             epoch_loss_count += b_s
             loss.backward()
+
+            # For debugging: log the full contents of the first few batches so we can
+            # see exactly what is being fed into the model and what it predicts.
+            # We log *all* examples in the first 4 optimizer steps.
+            if step < 4:
+                with torch.no_grad():
+                    result_mask = batch.get("result_mask")
+                    for ex_idx in range(b_s):
+                        interv_pos = int(positions[ex_idx].item())
+                        base_ids = batch["input_ids"][ex_idx].detach().cpu()
+                        source_ids = batch["source_input_ids"][ex_idx].detach().cpu()
+
+                        # Prefer using the explicit result_mask when present; otherwise
+                        # fall back to all valid label positions.
+                        mask_i = None
+                        result_indices: List[int] = []
+                        if result_mask is not None:
+                            mask_i = result_mask[ex_idx].bool()
+                            if mask_i.any():
+                                idx = mask_i.nonzero(as_tuple=False).view(-1)
+                                result_indices = idx.tolist()
+                                actual_ids = labels_b[ex_idx][idx].detach().cpu()
+                                pred_ids = torch.argmax(
+                                    logits[ex_idx][idx], dim=-1
+                                ).detach().cpu()
+                            else:
+                                mask_i = None
+
+                        if mask_i is None:
+                            valid = (labels_b[ex_idx] != -100).nonzero(as_tuple=False).view(-1)
+                            if valid.numel() > 0:
+                                idx = valid
+                                result_indices = idx.tolist()
+                                actual_ids = labels_b[ex_idx][idx].detach().cpu()
+                                pred_ids = torch.argmax(
+                                    logits[ex_idx][idx], dim=-1
+                                ).detach().cpu()
+                            else:
+                                # Extreme fallback: just use final timestep.
+                                last_idx = torch.tensor([logits.size(1) - 1], device=logits.device)
+                                result_indices = [int(last_idx.item())]
+                                actual_ids = labels_b[ex_idx][last_idx].detach().cpu()
+                                pred_ids = torch.argmax(
+                                    logits[ex_idx][last_idx], dim=-1
+                                ).detach().cpu()
+
+                        base_text = tokenizer.decode(
+                            base_ids, skip_special_tokens=True
+                        )
+                        source_text = tokenizer.decode(
+                            source_ids, skip_special_tokens=True
+                        )
+                        actual_text = tokenizer.decode(
+                            actual_ids, skip_special_tokens=True
+                        )
+                        pred_text = tokenizer.decode(
+                            pred_ids, skip_special_tokens=True
+                        )
+
+                        debug_lines = [
+                            "",
+                            "[DEBUG BoundlessDAS sample]",
+                            f"{log_tag} epoch={epoch} global_step={total_step} batch_step={step} example={ex_idx}",
+                            f"Intervention position (token index in base): {interv_pos}",
+                            f"Result label indices (debug focus positions): {result_indices}",
+                            "Base prompt (truncated):",
+                            base_text[:512],
+                            "Source prompt (truncated):",
+                            source_text[:512],
+                            f"Result (counterfactual labels): {actual_text}",
+                            f"Result (predicted after intervention): {pred_text}",
+                        ]
+                        print("\n".join(debug_lines), flush=True)
+
             # Free large tensors before next batch to reduce peak GPU memory
             del logits, counterfactual_outputs
             if device == "cuda":
@@ -463,7 +751,23 @@ def main():
                             [{"input_ids": v_batch["source_input_ids"]}],
                             {"sources->base": pos_v},
                         )
-                        val_iia_sum += compute_iia(out.logits, v_batch["labels"], last_token_only=True) * bv
+                        v_result_mask = v_batch.get("result_mask")
+                        if args.iia_resultwise and v_result_mask is not None:
+                            val_iia = compute_resultwise_iia(
+                                out.logits,
+                                v_batch["labels"],
+                                v_result_mask,
+                                tokenizer,
+                            )
+                        else:
+                            val_iia = compute_iia(
+                                out.logits,
+                                v_batch["labels"],
+                                last_token_only=True,
+                                result_mask=v_result_mask,
+                                example_wise=args.iia_examplewise,
+                            )
+                        val_iia_sum += val_iia * bv
                         val_n += bv
                 val_iia = val_iia_sum / val_n if val_n else 0.0
                 pbar.write(f"  [Val] IIA: {val_iia:.4f} {log_tag}")
@@ -490,7 +794,23 @@ def main():
                 [{"input_ids": batch["source_input_ids"]}],
                 {"sources->base": pos_t},
             )
-            test_iia_sum += compute_iia(out.logits, batch["labels"], last_token_only=True) * bn
+            t_result_mask = batch.get("result_mask")
+            if args.iia_resultwise and t_result_mask is not None:
+                test_iia = compute_resultwise_iia(
+                    out.logits,
+                    batch["labels"],
+                    t_result_mask,
+                    tokenizer,
+                )
+            else:
+                test_iia = compute_iia(
+                    out.logits,
+                    batch["labels"],
+                    last_token_only=True,
+                    result_mask=t_result_mask,
+                    example_wise=args.iia_examplewise,
+                )
+            test_iia_sum += test_iia * bn
             test_n += bn
     test_iia = test_iia_sum / test_n if test_n else 0.0
     print(f"Test IIA: {test_iia:.4f} {log_tag}")

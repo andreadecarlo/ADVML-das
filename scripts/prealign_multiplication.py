@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Evaluate Pythia family models on multiplication questions from scratchpad_zfill data.
+Evaluate causal LM models on our current multiplication scratchpad dataset.
 
-Usage:
-  uv run python scripts/eval_pythia_multiplication.py --model EleutherAI/pythia-70m
-  uv run python scripts/eval_pythia_multiplication.py --model EleutherAI/pythia-410m --max-samples 200
-  uv run python scripts/eval_pythia_multiplication.py --model EleutherAI/pythia-70m --prompt-type scratchpad
+Usage (examples):
+  uv run python scripts/prealign_multiplication.py --model Qwen/Qwen2-7B
+  uv run python scripts/prealign_multiplication.py --model Qwen/Qwen2-7B --max-samples 200
+  uv run python scripts/prealign_multiplication.py --model Qwen/Qwen2-7B --prompt-type scratchpad
 """
 
 from __future__ import annotations
@@ -23,39 +23,22 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from transformers.generation import StoppingCriteria, StoppingCriteriaList
 
 
-# Default Pythia model IDs (EleutherAI)
+# Default Pythia model IDs (EleutherAI) – kept for convenience when using those models.
 PYTHIA_MODELS = [
-    # "EleutherAI/pythia-14m",
     "EleutherAI/pythia-70m",
     "EleutherAI/pythia-160m",
     "EleutherAI/pythia-410m",
     "EleutherAI/pythia-1b",
     "EleutherAI/pythia-1.4b",
     "EleutherAI/pythia-2.8b",
-    "EleutherAI/pythia-6.9b"
+    "EleutherAI/pythia-6.9b",
 ]
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "multiplication" / "scratchpad_zfill"
-
-# System prompt wrapping question and optional scratchpad for multiplication
-SYSTEM_PROMPT_BASE = """To multiply two numbers, start by multiplying the rightmost digit of the multiplicand by each digit of the multiplier, writing down the products and carrying over any remainders.
-
-Always answer with only the final product as a number (no words, no explanation).
-
-Question: {question}"""
-
-
-def format_multiplication_prompt(question: str, scratchpad: str = "", include_answer_prefix: bool = False) -> str:
-    """Build prompt: base + optional 'Scratchpad: {scratchpad}' or 'Answer: ' prefix.
-    
-    If include_answer_prefix=True and scratchpad is empty, adds '\n\nAnswer: ' to match training format.
-    """
-    base = SYSTEM_PROMPT_BASE.format(question=question)
-    if not scratchpad:
-        if include_answer_prefix:
-            return base + "\n\nAnswer: "
-        return base
-    return base + "\n\nScratchpad: " + scratchpad
+# Our current multiplication dataset lives under datasets/, produced by
+# scripts/generate_multiplication_dataset.py. The factual file contains
+# items with keys: question, scratchpad, expected_answer, x, y, write_down_values.
+DATA_DIR = Path(__file__).resolve().parent.parent / "datasets"
+FACTUAL_GLOB = "multiplication_factual.json"
 
 
 def model_short_name(model_id: str) -> str:
@@ -93,11 +76,17 @@ def format_output_path(
 
 def load_prompts(
     data_dir: Path,
-    glob: str = "scratchpad_*_prompts.json",
+    glob: str = FACTUAL_GLOB,
     max_samples: int | None = None,
     seed: int = 42,
 ):
-    """Load all prompt JSON files from data_dir and yield (filename, items). When max_samples is set, shuffle first then take that many."""
+    """Load all prompt JSON files from data_dir and yield (filename, items).
+
+    For our current setup this typically loads a single
+    `multiplication_factual.json` file with the structure produced by
+    `generate_multiplication_dataset.py`.
+    When max_samples is set, shuffle first then take that many.
+    """
     files = sorted(data_dir.glob(glob))
     if not files:
         raise FileNotFoundError(f"No files matching {glob} in {data_dir}")
@@ -133,6 +122,31 @@ def extract_answer(text: str) -> int | None:
         return None
     # Last number in the first sentence is treated as the final product.
     return int(matches[-1])
+
+
+def build_prompt_from_item(item: dict, prompt_type: str = "question") -> str:
+    """
+    Build a prompt from a factual-dataset item.
+
+    - For prompt_type == "question": use just the question with an Answer: prefix.
+    - For prompt_type == "scratchpad": use the question plus the scratchpad,
+      but mask out the final product so the model has to generate it.
+    """
+    question = item["question"]
+    if prompt_type == "scratchpad":
+        scratchpad = item.get("scratchpad", "")
+        # Our scratchpad format ends with "We finally get {product}."
+        # We keep the lead-in "We finally get " and let the model produce the number.
+        marker = "We finally get "
+        idx = scratchpad.rfind(marker)
+        if idx != -1:
+            scratchpad_prefix = scratchpad[: idx + len(marker)]
+        else:
+            scratchpad_prefix = scratchpad
+        return question + "\n" + scratchpad_prefix
+    else:
+        # question-only mode: simple "Answer:" suffix to read out the final product
+        return question + "\nAnswer: "
 
 
 class StopOnNewlinePair(StoppingCriteria):
@@ -197,12 +211,8 @@ def run_eval(
         for i in pbar:
             batch = items[i : i + batch_size]
             for item in batch:
-                if prompt_type == "scratchpad":
-                    scratchpad_part = item["prompt"][:-6]
-                    prompt = format_multiplication_prompt(item["question"], scratchpad_part, include_answer_prefix=False)
-                else:
-                    # For question-only mode, use Answer: prefix to match training format
-                    prompt = format_multiplication_prompt(item["question"], "", include_answer_prefix=True)
+                # The current factual dataset has keys: question, scratchpad, expected_answer, ...
+                prompt = build_prompt_from_item(item, prompt_type=prompt_type)
                 expected = item["expected_answer"]
 
                 inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048).to(device)
