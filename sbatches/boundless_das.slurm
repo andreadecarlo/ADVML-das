@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=boundless_das
-#SBATCH --partition=edu-medium
+#SBATCH --partition=edu-short 
 #SBATCH -N 1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:1
-#SBATCH --mem=32G
+#SBATCH --mem=24G
 ##SBATCH --time=24:00:00
 #SBATCH --output=.out/boundless_das_%j.out
 
@@ -31,10 +31,13 @@ mkdir -p .out datasets/boundless_das outputs/boundless_das
 # module load CUDA/12.5.0
 
 # 1) Prepare dataset (no GPU); --max-samples limits examples (pass via sbatch ... --max-samples N)
+#    To include write_down counterfactuals, run generate_multiplication_dataset.py first, then add:
+#    --counterfactual-dataset-write-down datasets/multiplication_write_down_counterfactual.json
 MAX_SAMPLES="${MAX_SAMPLES:-2000}"
 echo "=== Preparing Boundless DAS dataset (max_samples=${MAX_SAMPLES}) ==="
 uv run python scripts/prepare_boundless_das_dataset.py \
     --counterfactual-dataset datasets/multiplication_counterfactual.json \
+    --counterfactual-dataset-write-down datasets/multiplication_write_down_counterfactual.json \
     --output-dir datasets/boundless_das \
     --tokenizer Qwen/Qwen2-7B \
     --max-samples "$MAX_SAMPLES"
@@ -48,6 +51,8 @@ uv run python scripts/train_boundless_das.py \
     --epochs 1 \
     --batch-size 16 \
     --output-dir outputs/boundless_das \
+    --intervention-type "carry_over" \
+    --step 0 \
     "$@"
 
 echo "End: $(date)"

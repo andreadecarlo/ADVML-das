@@ -8,7 +8,7 @@ dependencies = [
     "bitsandbytes>=0.43",
     "evaluate>=0.4.6",
     "nnsight>=0.5.15",
-    "pyvene==0.1.6",
+    "pyvene @ git+https://github.com/stanfordnlp/pyvene.git",
     "torch>=2.0",
     "transformers>=4.40",
     "tqdm>=4.66",

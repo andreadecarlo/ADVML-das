@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=mult_dataset
 #SBATCH --partition=edu-short
-#SBATCH --time=02:00:00
+##SBATCH --time=02:00:00
 #SBATCH --gres=gpu:0
 #SBATCH --mem=16G
 #SBATCH --cpus-per-task=8
