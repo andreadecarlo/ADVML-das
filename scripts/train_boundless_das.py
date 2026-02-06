@@ -18,6 +18,12 @@ from torch.nn import CrossEntropyLoss
 from tqdm import tqdm, trange
 from transformers import AutoTokenizer, AutoModelForCausalLM, get_linear_schedule_with_warmup
 
+try:
+    from datasets import load_dataset as hf_load_dataset
+    _HF_DATASETS_AVAILABLE = True
+except ImportError:
+    _HF_DATASETS_AVAILABLE = False
+
 from pyvene import (
     IntervenableModel,
     BoundlessRotatedSpaceIntervention,
@@ -75,6 +81,42 @@ def load_boundless_das_splits(
             data = [ex for ex in data if ex["step"] == step]
         splits[name] = data
     return splits["train"], splits["val"], splits["test"]
+
+
+def load_boundless_das_hf(
+    data_dir: str,
+    intervention_type: Optional[str] = None,
+    step: Optional[int] = None,
+):
+    """Load train/val/test using HuggingFace datasets (memory-mapped, efficient)."""
+    data_path = Path(data_dir)
+    jsonl_files = {
+        "train": str(data_path / "boundless_das_train.jsonl"),
+        "val": str(data_path / "boundless_das_val.jsonl"),
+        "test": str(data_path / "boundless_das_test.jsonl"),
+    }
+    for name, p in jsonl_files.items():
+        if not Path(p).exists():
+            raise FileNotFoundError(f"JSONL not found: {p}. Run prepare_boundless_das_dataset first.")
+    ds = hf_load_dataset(
+        "json",
+        data_files=jsonl_files,
+        split=None,
+        cache_dir=str(data_path / ".hf_cache"),
+    )
+    train_ds, val_ds, test_ds = ds["train"], ds["val"], ds["test"]
+
+    def _filter(ex):
+        if intervention_type is not None and ex.get("intervention_type") != intervention_type:
+            return False
+        if step is not None and ex.get("step") != step:
+            return False
+        return True
+
+    train_ds = train_ds.filter(_filter, num_proc=1, desc="Filter train")
+    val_ds = val_ds.filter(_filter, num_proc=1, desc="Filter val")
+    test_ds = test_ds.filter(_filter, num_proc=1, desc="Filter test")
+    return train_ds, val_ds, test_ds
 
 
 def _example_to_item(ex: Dict, pad_id: int, max_length: Optional[int]) -> Dict[str, torch.Tensor]:
@@ -154,6 +196,28 @@ class BoundlessDASDataset(Dataset):
         return _example_to_item(ex, self.pad_id, self.max_length)
 
 
+class HFDatasetAdapter(Dataset):
+    """Wraps a HuggingFace Dataset for Boundless DAS; memory-mapped, no full load."""
+
+    def __init__(self, hf_dataset, pad_id: int, max_length: Optional[int] = None):
+        self.hf_dataset = hf_dataset
+        self.pad_id = pad_id
+        self.max_length = max_length
+
+    def __len__(self) -> int:
+        return len(self.hf_dataset)
+
+    def __getitem__(self, i: int) -> Dict[str, torch.Tensor]:
+        row = self.hf_dataset[i]
+        ex = {
+            "input_ids": row["input_ids"],
+            "source_input_ids": row["source_input_ids"],
+            "labels": row["labels"],
+            "intervention_ids": row["intervention_ids"],
+        }
+        return _example_to_item(ex, self.pad_id, self.max_length)
+
+
 def collate_boundless_das(batch: List[Dict], pad_id: int):
     # Pad to max length in batch; stack intervention_position.
     max_len = max(b["input_ids"].size(0) for b in batch)
@@ -201,6 +265,13 @@ def main():
     parser.add_argument("--output-dir", type=str, default="outputs/boundless_das")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--max-length", type=int, default=None)
+    parser.add_argument(
+        "--use-hf-dataset",
+        action="store_true",
+        default=True,
+        help="Use HuggingFace datasets for memory-mapped loading (default: True when datasets installed)",
+    )
+    parser.add_argument("--no-use-hf-dataset", action="store_false", dest="use_hf_dataset")
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -219,7 +290,18 @@ def main():
     step_tag = str(args.step) if args.step is not None else "all"
     log_tag = f"[layer={args.layer} intervention_type={args.intervention_type} step={step_tag}]"
 
-    if jsonl_train.exists():
+    use_hf = args.use_hf_dataset and _HF_DATASETS_AVAILABLE and jsonl_train.exists()
+    if use_hf:
+        train_hf, val_hf, test_hf = load_boundless_das_hf(
+            args.data_dir,
+            intervention_type=args.intervention_type,
+            step=args.step,
+        )
+        train_ds = HFDatasetAdapter(train_hf, pad_id, args.max_length)
+        val_ds = HFDatasetAdapter(val_hf, pad_id, args.max_length)
+        test_ds = HFDatasetAdapter(test_hf, pad_id, args.max_length)
+        print(f"Train {len(train_ds)} val {len(val_ds)} test {len(test_ds)} (HuggingFace datasets) {log_tag}")
+    elif jsonl_train.exists():
         train_ds = LazyBoundlessDASDataset(
             data_path / "boundless_das_train.jsonl",
             pad_id, args.max_length,

@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "bitsandbytes>=0.43",
+    "datasets>=2.18",
     "evaluate>=0.4.6",
     "nnsight>=0.5.15",
     "pyvene @ git+https://github.com/stanfordnlp/pyvene.git",
