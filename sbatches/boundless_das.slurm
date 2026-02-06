@@ -13,13 +13,12 @@
 #SBATCH --output=.out/boundless_das_%j.out
 #SBATCH --error=.out/boundless_das_%j.out
 
-# Boundless DAS (multiplication counterfactual): prepare then train. Qwen2-7B.
-# Plan: (1) prepare_boundless_das_dataset → train/val/test with intervention positions from data
-#       (2) train_boundless_das → intervene one token at a time, stream IIA, test IIA at end
+# Boundless DAS (multiplication counterfactual): train on canonical dataset. Qwen2-7B.
+# Plan:
+#   (1) Run sbatches/prepare_boundless_das_dataset.slurm once to build datasets/boundless_das/*.jsonl
+#   (2) Use this script and sbatches/boundless_das_array.slurm for training only (read-only on data).
 # Usage (from project root):
 #   sbatch sbatches/boundless_das.slurm
-#   MAX_SAMPLES=5000 sbatch sbatches/boundless_das.slurm
-#   MAX_SAMPLES=2000 sbatch sbatches/boundless_das.slurm   # default: 10k
 
 set -e
 echo "Job ID: $SLURM_JOB_ID"
@@ -36,19 +35,8 @@ export PYTORCH_ALLOC_CONF=expandable_segments:True
 # Optional: load CUDA if required on your cluster
 # module load CUDA/12.5.0
 
-# 1) Prepare dataset (no GPU); --max-samples limits examples (pass via sbatch ... --max-samples N)
-#    To include write_down counterfactuals, run generate_multiplication_dataset.py first, then add:
-#    --counterfactual-dataset-write-down datasets/multiplication_write_down_counterfactual.json
-MAX_SAMPLES="${MAX_SAMPLES:-10000}"
-echo "=== Preparing Boundless DAS dataset ==="
-uv run python scripts/prepare_boundless_das_dataset.py \
-    --counterfactual-dataset datasets/multiplication_carry_counterfactual.json \
-    --counterfactual-dataset-write-down datasets/multiplication_write_down_counterfactual.json \
-    --output-dir datasets/boundless_das \
-    --tokenizer Qwen/Qwen2-7B \
-    --max-samples "$MAX_SAMPLES"
-
-# 2) Train Boundless DAS (GPU)
+# 1) Train Boundless DAS (GPU) on the canonical dataset prepared once by
+#    sbatches/prepare_boundless_das_dataset.slurm.
 echo "=== Training Boundless DAS ==="
 uv run python scripts/train_boundless_das.py \
     --data-dir datasets/boundless_das \
@@ -56,10 +44,15 @@ uv run python scripts/train_boundless_das.py \
     --layer 20 \
     --epochs 1 \
     --batch-size 8 \
+    --eval-batch-size 1 \
     --gradient-accumulation-steps 2 \
+    --eval-steps 200 \
+    --log-steps 50 \
     --output-dir outputs/boundless_das \
     --intervention-type "carry_over" \
     --step 0 \
+    --wandb-project "boundless_das" \
+    --wandb-run-name "layer20_carry_over_step0" \
     --max-train-samples 1000 \
     --iia-resultwise \
     "$@"

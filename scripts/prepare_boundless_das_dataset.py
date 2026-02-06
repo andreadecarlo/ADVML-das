@@ -25,6 +25,37 @@ from multiplication_boundless_das_utils import (
 from generate_multiplication_dataset import digits, compute_write_down_values
 
 
+def _num_digits(n: Any) -> Optional[int]:
+    """Return number of base-10 digits for an int-like value; None if unknown."""
+    if n is None:
+        return None
+    try:
+        # Handles ints, numeric strings, and numpy scalars that cast cleanly.
+        n_int = int(n)
+    except (TypeError, ValueError):
+        return None
+    n_int = abs(n_int)
+    return len(str(n_int))
+
+
+def _passes_digit_filter(
+    ex: Dict[str, Any],
+    x_digits: Optional[int],
+    y_digits: Optional[int],
+) -> bool:
+    """Keep only examples whose original operands match requested digit lengths."""
+    if x_digits is None and y_digits is None:
+        return True
+    orig = ex.get("original", {})
+    xd = _num_digits(orig.get("x"))
+    yd = _num_digits(orig.get("y"))
+    if x_digits is not None and xd != x_digits:
+        return False
+    if y_digits is not None and yd != y_digits:
+        return False
+    return True
+
+
 def _normalize_example(example: Dict[str, Any]) -> Dict[str, Any]:
     """Ensure original/counterfactual have scratchpad and write_down_values (from prompt/x/y if needed)."""
     for key in ("original", "counterfactual"):
@@ -56,6 +87,8 @@ def prepare_boundless_das_dataset(
     seed: int = 42,
     counterfactual_dataset_path_write_down: Optional[str] = None,
     max_samples: Optional[int] = None,
+    x_digits: Optional[int] = None,
+    y_digits: Optional[int] = None,
 ):
     """
     Prepare counterfactual dataset for Boundless DAS with intervention positions from data.
@@ -71,6 +104,8 @@ def prepare_boundless_das_dataset(
         seed: Random seed for split
         counterfactual_dataset_path_write_down: Optional path to write_down counterfactual JSON
         max_samples: If set, only process this many examples (for faster/smaller runs)
+        x_digits: If set, keep only examples where original x has exactly this many digits.
+        y_digits: If set, keep only examples where original y has exactly this many digits.
     """
     random.seed(seed)
     # Load tokenizer
@@ -88,6 +123,13 @@ def prepare_boundless_das_dataset(
         print(f"Loading from {path}")
         with open(path) as f:
             data = json.load(f)
+        # Apply operand digit filtering before any max_samples truncation so that
+        # max_samples refers to the filtered dataset size (more intuitive).
+        if x_digits is not None or y_digits is not None:
+            before = len(data)
+            data = [ex for ex in data if _passes_digit_filter(ex, x_digits, y_digits)]
+            after = len(data)
+            print(f"  Digit filter x_digits={x_digits} y_digits={y_digits}: {before} -> {after}")
         if max_samples is not None and len(all_examples) + len(data) > max_samples:
             take = max_samples - len(all_examples)
             data = data[:take]
@@ -292,6 +334,18 @@ if __name__ == "__main__":
         default=None,
         help="Max number of counterfactual examples to process (default: all)",
     )
+    parser.add_argument(
+        "--x-digits",
+        type=int,
+        default=None,
+        help="If set, keep only examples where original x has exactly this many digits (e.g. 2).",
+    )
+    parser.add_argument(
+        "--y-digits",
+        type=int,
+        default=None,
+        help="If set, keep only examples where original y has exactly this many digits (e.g. 1).",
+    )
     args = parser.parse_args()
 
     prepare_boundless_das_dataset(
@@ -303,4 +357,6 @@ if __name__ == "__main__":
         seed=args.seed,
         counterfactual_dataset_path_write_down=args.counterfactual_dataset_write_down,
         max_samples=args.max_samples,
+        x_digits=args.x_digits,
+        y_digits=args.y_digits,
     )

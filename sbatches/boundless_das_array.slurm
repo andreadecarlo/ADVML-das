@@ -13,11 +13,14 @@
 # Boundless DAS array: layers {5,10,15,20,25} x intervention-type {carry_over, write_down} x step {0,1,2}.
 # Array index 0-29: task_id -> layer_idx=task_id/6, type_idx=(task_id/3)%2, step_idx=task_id%3.
 # Usage (from project root):
-#   sbatch sbatches/boundless_das_array.slurm
-#   MAX_SAMPLES=5000 sbatch sbatches/boundless_das_array.slurm
+#   # 1) One-off canonical dataset preparation (no array):
+#   #    sbatch sbatches/prepare_boundless_das_dataset.slurm
+#   #
+#   # 2) Many parallel training jobs reading the same canonical dataset:
+#   #    sbatch sbatches/boundless_das_array.slurm
 
 set -e
-LAYERS=(5 10 15 20 25)
+LAYERS=(15 20 25 10 5)
 TYPES=(carry_over write_down)
 STEP_NAMES=(ones tens hundreds)
 task_id=${SLURM_ARRAY_TASK_ID:-0}
@@ -40,17 +43,8 @@ cd "$REPO_ROOT"
 mkdir -p .out datasets/boundless_das outputs/boundless_das "$OUTPUT_DIR"
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 
-# 1) Prepare dataset (same for all array tasks; overwrites if multiple run)
-MAX_SAMPLES="${MAX_SAMPLES:-30000}"
-echo "=== Preparing Boundless DAS dataset ==="
-uv run python scripts/prepare_boundless_das_dataset.py \
-    --counterfactual-dataset datasets/multiplication_carry_counterfactual.json \
-    --counterfactual-dataset-write-down datasets/multiplication_write_down_counterfactual.json \
-    --output-dir datasets/boundless_das \
-    --tokenizer Qwen/Qwen2-7B \
-    # --max-samples "$MAX_SAMPLES"
-
-# 2) Train for this (layer, intervention-type, step)
+# 1) Train for this (layer, intervention-type, step) using the canonical dataset
+#    prepared once by sbatches/prepare_boundless_das_dataset.slurm.
 echo "=== Training Boundless DAS layer=$LAYER intervention-type=$TYPE step=$STEP ($STEP_NAME) ==="
 uv run python scripts/train_boundless_das.py \
     --data-dir datasets/boundless_das \
@@ -58,10 +52,15 @@ uv run python scripts/train_boundless_das.py \
     --layer "$LAYER" \
     --epochs 1 \
     --batch-size 8 \
+    --eval-batch-size 1 \
     --gradient-accumulation-steps 2 \
+    --eval-steps 100 \
+    --log-steps 50 \
     --output-dir "$OUTPUT_DIR" \
     --intervention-type "$TYPE" \
     --step "$STEP" \
+    --wandb-project "boundless_das" \
+    --wandb-run-name "layer${LAYER}_${TYPE}_step${STEP}" \
     --max-train-samples 5000 \
     --iia-resultwise \
     "$@"

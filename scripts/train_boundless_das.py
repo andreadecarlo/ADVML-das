@@ -20,6 +20,14 @@ from tqdm import tqdm, trange
 from transformers import AutoTokenizer, AutoModelForCausalLM, get_linear_schedule_with_warmup
 
 try:
+    import wandb
+
+    _WANDB_AVAILABLE = True
+except ImportError:
+    wandb = None
+    _WANDB_AVAILABLE = False
+
+try:
     from datasets import load_dataset as hf_load_dataset
     _HF_DATASETS_AVAILABLE = True
 except ImportError:
@@ -363,6 +371,11 @@ class HFDatasetAdapter(Dataset):
             "labels": row["labels"],
             "intervention_ids": row["intervention_ids"],
         }
+        # Preserve optional result_label_positions if present so that downstream
+        # code can build a result_mask in collate_boundless_das, enabling the
+        # specialized IIA metrics that focus on the multiplication result.
+        if "result_label_positions" in row and row["result_label_positions"] is not None:
+            ex["result_label_positions"] = row["result_label_positions"]
         return _example_to_item(ex, self.pad_id, self.max_length)
 
 
@@ -424,11 +437,23 @@ def main():
     parser.add_argument("--intervention-type", type=str, choices=["carry_over", "write_down"], default=None)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=4, help="Training batch size (default 4)")
+    parser.add_argument(
+        "--eval-batch-size",
+        type=int,
+        default=None,
+        help="Batch size for validation/test. Default: same as --batch-size.",
+    )
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--boundary-lr", type=float, default=1e-2)
     parser.add_argument("--warmup-ratio", type=float, default=0.1)
     parser.add_argument("--gradient-accumulation-steps", type=int, default=4)
     parser.add_argument("--eval-steps", type=int, default=200)
+    parser.add_argument(
+        "--log-steps",
+        type=int,
+        default=200,
+        help="How often (in training steps) to log full debug batches from training.",
+    )
     parser.add_argument("--output-dir", type=str, default="outputs/boundless_das")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--max-length", type=int, default=None)
@@ -439,6 +464,8 @@ def main():
         help="Use HuggingFace datasets for memory-mapped loading (default: True when datasets installed)",
     )
     parser.add_argument("--no-use-hf-dataset", action="store_false", dest="use_hf_dataset")
+
+    parser.add_argument(
         "--iia-examplewise",
         action="store_true",
         help=(
@@ -462,6 +489,18 @@ def main():
         default=None,
         help="If set, cap the number of training examples to this many (for faster experiments).",
     )
+    parser.add_argument(
+        "--wandb-project",
+        type=str,
+        default=None,
+        help="If set, log metrics to this Weights & Biases project.",
+    )
+    parser.add_argument(
+        "--wandb-run-name",
+        type=str,
+        default=None,
+        help="Optional custom Weights & Biases run name.",
+    )
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -477,8 +516,23 @@ def main():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     pad_id = tokenizer.pad_token_id
+    eval_batch_size = args.eval_batch_size or args.batch_size
     step_tag = str(args.step) if args.step is not None else "all"
     log_tag = f"[layer={args.layer} intervention_type={args.intervention_type} step={step_tag}]"
+
+    # Optional Weights & Biases logging
+    use_wandb = args.wandb_project is not None and _WANDB_AVAILABLE
+    if args.wandb_project is not None and not _WANDB_AVAILABLE:
+        logging.warning("wandb logging requested but wandb is not installed; continuing without logging.")
+    if use_wandb:
+        default_run_name = args.wandb_run_name
+        if default_run_name is None:
+            default_run_name = f"layer{args.layer}_{args.intervention_type}_step{step_tag}"
+        wandb.init(
+            project=args.wandb_project,
+            name=default_run_name,
+            config=vars(args),
+        )
 
     use_hf = args.use_hf_dataset and _HF_DATASETS_AVAILABLE and jsonl_train.exists()
     if use_hf:
@@ -543,8 +597,12 @@ def main():
         train_ds, batch_size=args.batch_size, shuffle=True, collate_fn=collate,
         num_workers=0, pin_memory=False,
     )
-    val_loader = DataLoader(val_ds, batch_size=args.batch_size, collate_fn=collate, num_workers=0, pin_memory=False)
-    test_loader = DataLoader(test_ds, batch_size=args.batch_size, collate_fn=collate, num_workers=0, pin_memory=False)
+    val_loader = DataLoader(
+        val_ds, batch_size=eval_batch_size, collate_fn=collate, num_workers=0, pin_memory=False
+    )
+    test_loader = DataLoader(
+        test_ds, batch_size=eval_batch_size, collate_fn=collate, num_workers=0, pin_memory=False
+    )
 
     # Model (quiet load)
     print(f"Loading model {args.model_name} {log_tag}")
@@ -649,10 +707,12 @@ def main():
             epoch_loss_count += b_s
             loss.backward()
 
-            # For debugging: log the full contents of the first few batches so we can
+            # For debugging: log the full contents of some batches so we can
             # see exactly what is being fed into the model and what it predicts.
-            # We log *all* examples in the first 4 optimizer steps.
-            if step < 4:
+            # We log all examples in:
+            #   - the first 4 optimizer steps, and
+            #   - every args.log_steps thereafter (purely for training inspection).
+            if step < 4 or ((step + 1) % args.log_steps == 0):
                 with torch.no_grad():
                     result_mask = batch.get("result_mask")
                     for ex_idx in range(b_s):
@@ -736,6 +796,15 @@ def main():
             if total_step < len(temperature_schedule):
                 intervenable.set_temperature(temperature_schedule[total_step])
             pbar.set_postfix({"loss": f"{loss.item():.3f}", "IIA": f"{iia:.3f}"})
+            if use_wandb:
+                wandb.log(
+                    {
+                        "train/loss": float(loss.item()),
+                        "train/iia_step": float(iia),
+                        "train/epoch": float(epoch),
+                    },
+                    step=total_step,
+                )
             if (step + 1) % args.eval_steps == 0:
                 intervenable.eval()
                 val_iia_sum, val_n = 0.0, 0
@@ -746,22 +815,23 @@ def main():
                                 v_batch[k] = v.to(device)
                         bv = v_batch["input_ids"].shape[0]
                         pos_v = v_batch["intervention_positions"].tolist()
-                        _, out = intervenable(
+                        _, v_out = intervenable(
                             {"input_ids": v_batch["input_ids"]},
                             [{"input_ids": v_batch["source_input_ids"]}],
                             {"sources->base": pos_v},
                         )
+                        v_logits = v_out.logits
                         v_result_mask = v_batch.get("result_mask")
                         if args.iia_resultwise and v_result_mask is not None:
                             val_iia = compute_resultwise_iia(
-                                out.logits,
+                                v_logits,
                                 v_batch["labels"],
                                 v_result_mask,
                                 tokenizer,
                             )
                         else:
                             val_iia = compute_iia(
-                                out.logits,
+                                v_logits,
                                 v_batch["labels"],
                                 last_token_only=True,
                                 result_mask=v_result_mask,
@@ -769,19 +839,41 @@ def main():
                             )
                         val_iia_sum += val_iia * bv
                         val_n += bv
+
+                        # Free large tensors between validation batches to keep memory usage low.
+                        del v_logits, v_out
+                        if device == "cuda":
+                            torch.cuda.empty_cache()
                 val_iia = val_iia_sum / val_n if val_n else 0.0
                 pbar.write(f"  [Val] IIA: {val_iia:.4f} {log_tag}")
+                if use_wandb:
+                    wandb.log(
+                        {
+                            "val/iia": float(val_iia),
+                            "val/epoch": float(epoch),
+                        },
+                        step=total_step,
+                    )
                 intervenable.model.train()
         train_iia_epoch = epoch_iia_sum / epoch_iia_count if epoch_iia_count else 0.0
         mean_loss_epoch = epoch_loss_sum / epoch_loss_count if epoch_loss_count else 0.0
         last_train_iia = train_iia_epoch
         last_mean_loss = mean_loss_epoch
         print(f"Epoch {epoch} train IIA: {train_iia_epoch:.4f} mean_loss: {mean_loss_epoch:.4f} {log_tag}")
+        if use_wandb:
+            wandb.log(
+                {
+                    "train/iia_epoch": float(train_iia_epoch),
+                    "train/mean_loss_epoch": float(mean_loss_epoch),
+                },
+                step=total_step,
+            )
 
     # Test split IIA
     print(f"Evaluating IIA on test split {log_tag}...")
     intervenable.eval()
     test_iia_sum, test_n = 0.0, 0
+    test_debug_batches_logged = 0
     with torch.no_grad():
         for batch in tqdm(test_loader, desc="Test"):
             for k, v in batch.items():
@@ -789,22 +881,23 @@ def main():
                     batch[k] = v.to(device)
             bn = batch["input_ids"].shape[0]
             pos_t = batch["intervention_positions"].tolist()
-            _, out = intervenable(
+            _, t_out = intervenable(
                 {"input_ids": batch["input_ids"]},
                 [{"input_ids": batch["source_input_ids"]}],
                 {"sources->base": pos_t},
             )
+            t_logits = t_out.logits
             t_result_mask = batch.get("result_mask")
             if args.iia_resultwise and t_result_mask is not None:
                 test_iia = compute_resultwise_iia(
-                    out.logits,
+                    t_logits,
                     batch["labels"],
                     t_result_mask,
                     tokenizer,
                 )
             else:
                 test_iia = compute_iia(
-                    out.logits,
+                    t_logits,
                     batch["labels"],
                     last_token_only=True,
                     result_mask=t_result_mask,
@@ -812,8 +905,93 @@ def main():
                 )
             test_iia_sum += test_iia * bn
             test_n += bn
+
+            # For debugging: log the full contents of the first few test batches so we can
+            # see exactly what is being evaluated and what the model predicts.
+            if test_debug_batches_logged < 4:
+                positions_t = batch["intervention_positions"]
+                for ex_idx in range(bn):
+                    interv_pos = int(positions_t[ex_idx].item())
+                    base_ids = batch["input_ids"][ex_idx].detach().cpu()
+                    source_ids = batch["source_input_ids"][ex_idx].detach().cpu()
+
+                    # Prefer using the explicit result_mask when present; otherwise
+                    # fall back to all valid label positions.
+                    mask_i = None
+                    result_indices: List[int] = []
+                    if t_result_mask is not None:
+                        mask_i = t_result_mask[ex_idx].bool()
+                        if mask_i.any():
+                            idx = mask_i.nonzero(as_tuple=False).view(-1)
+                            result_indices = idx.tolist()
+                            actual_ids = batch["labels"][ex_idx][idx].detach().cpu()
+                            pred_ids = torch.argmax(
+                                t_logits[ex_idx][idx], dim=-1
+                            ).detach().cpu()
+                        else:
+                            mask_i = None
+
+                    if mask_i is None:
+                        valid = (batch["labels"][ex_idx] != -100).nonzero(as_tuple=False).view(-1)
+                        if valid.numel() > 0:
+                            idx = valid
+                            result_indices = idx.tolist()
+                            actual_ids = batch["labels"][ex_idx][idx].detach().cpu()
+                            pred_ids = torch.argmax(
+                                t_logits[ex_idx][idx], dim=-1
+                            ).detach().cpu()
+                        else:
+                            # Extreme fallback: just use final timestep.
+                            last_idx = torch.tensor([t_logits.size(1) - 1], device=t_logits.device)
+                            result_indices = [int(last_idx.item())]
+                            actual_ids = batch["labels"][ex_idx][last_idx].detach().cpu()
+                            pred_ids = torch.argmax(
+                                t_logits[ex_idx][last_idx], dim=-1
+                            ).detach().cpu()
+
+                    base_text = tokenizer.decode(
+                        base_ids, skip_special_tokens=True
+                    )
+                    source_text = tokenizer.decode(
+                        source_ids, skip_special_tokens=True
+                    )
+                    actual_text = tokenizer.decode(
+                        actual_ids, skip_special_tokens=True
+                    )
+                    pred_text = tokenizer.decode(
+                        pred_ids, skip_special_tokens=True
+                    )
+
+                    debug_lines = [
+                        "",
+                        "[DEBUG BoundlessDAS test sample]",
+                        f"{log_tag} example={ex_idx}",
+                        f"Intervention position (token index in base): {interv_pos}",
+                        f"Result label indices (debug focus positions): {result_indices}",
+                        "Base prompt (truncated):",
+                        base_text[:512],
+                        "Source prompt (truncated):",
+                        source_text[:512],
+                        f"Result (counterfactual labels): {actual_text}",
+                        f"Result (predicted after intervention): {pred_text}",
+                    ]
+                    print("\n".join(debug_lines), flush=True)
+                test_debug_batches_logged += 1
+
+            # Free large tensors between test batches to keep memory usage low.
+            del t_logits, t_out
+            if device == "cuda":
+                torch.cuda.empty_cache()
     test_iia = test_iia_sum / test_n if test_n else 0.0
     print(f"Test IIA: {test_iia:.4f} {log_tag}")
+    if use_wandb:
+        wandb.log(
+            {
+                "test/iia": float(test_iia),
+                "test/n_examples": float(test_n),
+            },
+            step=total_step,
+        )
     with open(Path(args.output_dir) / "test_iia.json", "w") as f:
         json.dump(
             {"test_iia": test_iia, "n_test": test_n, "layer": args.layer, "intervention_type": args.intervention_type, "step": args.step},
@@ -842,6 +1020,9 @@ def main():
             writer.writeheader()
         writer.writerow(row)
     print(f"Appended results to {results_csv} {log_tag}")
+
+    if use_wandb:
+        wandb.finish()
 
 
 if __name__ == "__main__":
