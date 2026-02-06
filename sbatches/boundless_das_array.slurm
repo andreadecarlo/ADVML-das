@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=boundless_das_arr
-#SBATCH --partition=edu-short
+#SBATCH --partition=edu-long
 #SBATCH -N 1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8

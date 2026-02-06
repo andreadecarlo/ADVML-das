@@ -7,7 +7,11 @@
 #SBATCH --gres=gpu:1
 #SBATCH --mem=24G
 ##SBATCH --time=24:00:00
+# Write both stdout and stderr to the same log file so that
+# tqdm.write-based debug lines from train_boundless_das.py
+# (which go to stderr) appear in the .out/boundless_das_*.out logs.
 #SBATCH --output=.out/boundless_das_%j.out
+#SBATCH --error=.out/boundless_das_%j.out
 
 # Boundless DAS (multiplication counterfactual): prepare then train. Qwen2-7B.
 # Plan: (1) prepare_boundless_das_dataset → train/val/test with intervention positions from data
@@ -36,26 +40,27 @@ export PYTORCH_ALLOC_CONF=expandable_segments:True
 #    To include write_down counterfactuals, run generate_multiplication_dataset.py first, then add:
 #    --counterfactual-dataset-write-down datasets/multiplication_write_down_counterfactual.json
 MAX_SAMPLES="${MAX_SAMPLES:-10000}"
-echo "=== Preparing Boundless DAS dataset (max_samples=${MAX_SAMPLES}) ==="
+echo "=== Preparing Boundless DAS dataset ==="
 uv run python scripts/prepare_boundless_das_dataset.py \
     --counterfactual-dataset datasets/multiplication_carry_counterfactual.json \
     --counterfactual-dataset-write-down datasets/multiplication_write_down_counterfactual.json \
     --output-dir datasets/boundless_das \
     --tokenizer Qwen/Qwen2-7B \
-    # --max-samples "$MAX_SAMPLES"
+    --max-samples "$MAX_SAMPLES"
 
 # 2) Train Boundless DAS (GPU)
 echo "=== Training Boundless DAS ==="
 uv run python scripts/train_boundless_das.py \
     --data-dir datasets/boundless_das \
     --model-name Qwen/Qwen2-7B \
-    --layer 5 \
+    --layer 15 \
     --epochs 1 \
     --batch-size 8 \
     --gradient-accumulation-steps 2 \
     --output-dir outputs/boundless_das \
     --intervention-type "carry_over" \
     --step 0 \
+    --max-train-samples 1000 \
     "$@"
 
 echo "End: $(date)"
