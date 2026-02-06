@@ -5,6 +5,7 @@ import csv
 import json
 import argparse
 import logging
+import re
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -44,6 +45,7 @@ def compute_iia(
     labels: torch.Tensor,
     last_token_only: bool = True,
     result_mask: Optional[torch.Tensor] = None,
+    example_wise: bool = False,
 ) -> float:
     """
     Interchange Intervention Accuracy.
@@ -57,15 +59,35 @@ def compute_iia(
     if result_mask is not None:
         # Use only positions flagged by result_mask.
         # logits, labels, result_mask: (B, T, V), (B, T), (B, T)
-        logits_flat = logits.view(-1, vocab_size)
-        labels_flat = labels.view(-1)
-        mask_flat = result_mask.view(-1).bool()
-        valid = (labels_flat != -100) & mask_flat
-        if valid.sum() == 0:
-            return 0.0
-        pred = torch.argmax(logits_flat[valid], dim=-1)
-        actual = labels_flat[valid]
-        return (pred == actual).float().mean().item()
+        if example_wise:
+            # Example-wise IIA: for each example, consider it correct iff *all*
+            # masked positions with labels != -100 are predicted correctly.
+            # Then average these 0/1 scores over examples that have at least
+            # one such position.
+            preds = torch.argmax(logits, dim=-1)  # (B, T)
+            B = preds.size(0)
+            correct_examples = 0.0
+            counted = 0.0
+            for b in range(B):
+                mask_b = result_mask[b].bool() & (labels[b] != -100)
+                if not mask_b.any():
+                    continue
+                counted += 1.0
+                if (preds[b][mask_b] == labels[b][mask_b]).all():
+                    correct_examples += 1.0
+            if counted == 0.0:
+                return 0.0
+            return float(correct_examples / counted)
+        else:
+            logits_flat = logits.view(-1, vocab_size)
+            labels_flat = labels.view(-1)
+            mask_flat = result_mask.view(-1).bool()
+            valid = (labels_flat != -100) & mask_flat
+            if valid.sum() == 0:
+                return 0.0
+            pred = torch.argmax(logits_flat[valid], dim=-1)
+            actual = labels_flat[valid]
+            return (pred == actual).float().mean().item()
     else:
         if last_token_only:
             pred = torch.argmax(logits[:, -1], dim=-1)
@@ -79,6 +101,63 @@ def compute_iia(
         if valid.sum() == 0:
             return 0.0
         return (pred[valid] == actual[valid]).float().mean().item()
+
+
+def _extract_result_int(text: str) -> Optional[int]:
+    """
+    Extract an integer result from decoded text, similar in spirit to
+    prealign_multiplication.extract_answer: take the last integer in the first
+    sentence so that formats like "The product is 0014." and "0014." both map
+    to the same value.
+    """
+    # Restrict to first sentence (up to first ., ?, or !)
+    m = re.search(r"[.!?]", text)
+    if m:
+        first_sentence = text[: m.end()]
+    else:
+        first_sentence = text
+    matches = re.findall(r"\b(\d+)\b", first_sentence)
+    if not matches:
+        return None
+    return int(matches[-1])
+
+
+def compute_resultwise_iia(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    result_mask: Optional[torch.Tensor],
+    tokenizer,
+) -> float:
+    """
+    Example-wise "same result" accuracy:
+    - For each example, gather the label/prediction tokens at result_mask==True
+      (and label != -100).
+    - Decode both spans, extract an integer from each, and count the example as
+      correct iff the integers are equal.
+    - Return the fraction of such examples that are correct.
+    """
+    if result_mask is None:
+        return 0.0
+    preds = torch.argmax(logits, dim=-1)  # (B, T)
+    B = preds.size(0)
+    correct_examples = 0.0
+    counted = 0.0
+    for b in range(B):
+        mask_b = result_mask[b].bool() & (labels[b] != -100)
+        if not mask_b.any():
+            continue
+        counted += 1.0
+        label_ids = labels[b][mask_b].detach().cpu()
+        pred_ids = preds[b][mask_b].detach().cpu()
+        label_text = tokenizer.decode(label_ids, skip_special_tokens=True)
+        pred_text = tokenizer.decode(pred_ids, skip_special_tokens=True)
+        label_int = _extract_result_int(label_text)
+        pred_int = _extract_result_int(pred_text)
+        if label_int is not None and pred_int is not None and label_int == pred_int:
+            correct_examples += 1.0
+    if counted == 0.0:
+        return 0.0
+    return float(correct_examples / counted)
 
 
 def load_boundless_das_splits(
@@ -290,6 +369,24 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--max-length", type=int, default=None)
     parser.add_argument(
+        "--iia-examplewise",
+        action="store_true",
+        help=(
+            "If set, compute IIA as example-wise all-or-nothing over result_mask "
+            "positions (an example counts as correct only if *all* masked result "
+            "tokens are predicted correctly). Default is per-token accuracy."
+        ),
+    )
+    parser.add_argument(
+        "--iia-resultwise",
+        action="store_true",
+        help=(
+            "If set, compute IIA based on equality of the decoded numeric result "
+            "between labels and predictions over result_mask positions (similar to "
+            "prealign_multiplication.py). This takes precedence over --iia-examplewise."
+        ),
+    )
+    parser.add_argument(
         "--max-train-samples",
         type=int,
         default=None,
@@ -446,12 +543,22 @@ def main():
             )
             logits = counterfactual_outputs.logits
             labels_b = batch["labels"]
-            iia = compute_iia(
-                logits,
-                labels_b,
-                last_token_only=True,
-                result_mask=batch.get("result_mask"),
-            )
+            batch_result_mask = batch.get("result_mask")
+            if args.iia_resultwise and batch_result_mask is not None:
+                iia = compute_resultwise_iia(
+                    logits,
+                    labels_b,
+                    batch_result_mask,
+                    tokenizer,
+                )
+            else:
+                iia = compute_iia(
+                    logits,
+                    labels_b,
+                    last_token_only=True,
+                    result_mask=batch_result_mask,
+                    example_wise=args.iia_examplewise,
+                )
             epoch_iia_sum += iia * b_s
             epoch_iia_count += b_s
             loss = calculate_loss(logits, labels_b, intervenable)
@@ -563,12 +670,23 @@ def main():
                             [{"input_ids": v_batch["source_input_ids"]}],
                             {"sources->base": pos_v},
                         )
-                        val_iia_sum += compute_iia(
-                            out.logits,
-                            v_batch["labels"],
-                            last_token_only=True,
-                            result_mask=v_batch.get("result_mask"),
-                        ) * bv
+                        v_result_mask = v_batch.get("result_mask")
+                        if args.iia_resultwise and v_result_mask is not None:
+                            val_iia = compute_resultwise_iia(
+                                out.logits,
+                                v_batch["labels"],
+                                v_result_mask,
+                                tokenizer,
+                            )
+                        else:
+                            val_iia = compute_iia(
+                                out.logits,
+                                v_batch["labels"],
+                                last_token_only=True,
+                                result_mask=v_result_mask,
+                                example_wise=args.iia_examplewise,
+                            )
+                        val_iia_sum += val_iia * bv
                         val_n += bv
                 val_iia = val_iia_sum / val_n if val_n else 0.0
                 pbar.write(f"  [Val] IIA: {val_iia:.4f} {log_tag}")
@@ -595,12 +713,23 @@ def main():
                 [{"input_ids": batch["source_input_ids"]}],
                 {"sources->base": pos_t},
             )
-            test_iia_sum += compute_iia(
-                out.logits,
-                batch["labels"],
-                last_token_only=True,
-                result_mask=batch.get("result_mask"),
-            ) * bn
+            t_result_mask = batch.get("result_mask")
+            if args.iia_resultwise and t_result_mask is not None:
+                test_iia = compute_resultwise_iia(
+                    out.logits,
+                    batch["labels"],
+                    t_result_mask,
+                    tokenizer,
+                )
+            else:
+                test_iia = compute_iia(
+                    out.logits,
+                    batch["labels"],
+                    last_token_only=True,
+                    result_mask=t_result_mask,
+                    example_wise=args.iia_examplewise,
+                )
+            test_iia_sum += test_iia * bn
             test_n += bn
     test_iia = test_iia_sum / test_n if test_n else 0.0
     print(f"Test IIA: {test_iia:.4f} {log_tag}")

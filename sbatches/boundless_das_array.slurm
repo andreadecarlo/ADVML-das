@@ -41,8 +41,8 @@ mkdir -p .out datasets/boundless_das outputs/boundless_das "$OUTPUT_DIR"
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 
 # 1) Prepare dataset (same for all array tasks; overwrites if multiple run)
-MAX_SAMPLES="${MAX_SAMPLES:-10000}"
-echo "=== Preparing Boundless DAS dataset (max_samples=${MAX_SAMPLES}) ==="
+MAX_SAMPLES="${MAX_SAMPLES:-30000}"
+echo "=== Preparing Boundless DAS dataset ==="
 uv run python scripts/prepare_boundless_das_dataset.py \
     --counterfactual-dataset datasets/multiplication_carry_counterfactual.json \
     --counterfactual-dataset-write-down datasets/multiplication_write_down_counterfactual.json \
@@ -62,6 +62,8 @@ uv run python scripts/train_boundless_das.py \
     --output-dir "$OUTPUT_DIR" \
     --intervention-type "$TYPE" \
     --step "$STEP" \
+    --max-train-samples 5000 \
+    --iia-resultwise \
     "$@"
 
 echo "End: $(date)"

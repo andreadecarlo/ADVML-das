@@ -53,7 +53,7 @@ echo "=== Training Boundless DAS ==="
 uv run python scripts/train_boundless_das.py \
     --data-dir datasets/boundless_das \
     --model-name Qwen/Qwen2-7B \
-    --layer 15 \
+    --layer 20 \
     --epochs 1 \
     --batch-size 8 \
     --gradient-accumulation-steps 2 \
@@ -61,6 +61,7 @@ uv run python scripts/train_boundless_das.py \
     --intervention-type "carry_over" \
     --step 0 \
     --max-train-samples 1000 \
+    --iia-resultwise \
     "$@"
 
 echo "End: $(date)"
