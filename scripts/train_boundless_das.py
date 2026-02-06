@@ -1,10 +1,7 @@
-"""
-Train Boundless DAS on the multiplication counterfactual dataset.
-Intervene on one token at a time; position from data. Supports layer, step,
-and intervention_type (carry / write_down). Evaluates IIA and streams it
-during training; tests IIA on the test split at the end.
-"""
+# Train Boundless DAS on the multiplication counterfactual dataset.
+# Intervene on one token at a time; position from data. Supports layer, step, intervention_type. Evaluates IIA.
 
+import csv
 import json
 import argparse
 import logging
@@ -31,7 +28,7 @@ from pyvene import set_seed, count_parameters
 
 
 def simple_boundless_das_position_config(model_type, intervention_type: str, layer: int):
-    """Config for Boundless DAS at a single layer (position-aligned)."""
+    # Config for Boundless DAS at a single layer (position-aligned).
     config = IntervenableConfig(
         model_type=model_type,
         representations=[
@@ -43,10 +40,7 @@ def simple_boundless_das_position_config(model_type, intervention_type: str, lay
 
 
 def compute_iia(logits: torch.Tensor, labels: torch.Tensor, last_token_only: bool = True) -> float:
-    """
-    Interchange Intervention Accuracy: after intervention, does the model
-    predict the counterfactual (source) next token? Labels are counterfactual.
-    """
+    # Interchange Intervention Accuracy: after intervention, does the model predict the counterfactual (source) next token?
     if last_token_only:
         pred = torch.argmax(logits[:, -1], dim=-1)
         actual = labels[:, -1]
@@ -66,7 +60,7 @@ def load_boundless_das_splits(
     intervention_type: Optional[str] = None,
     step: Optional[int] = None,
 ) -> tuple:
-    """Load train/val/test from prepared boundless_das JSONs; optional filter by type/step."""
+    # Load train/val/test from prepared boundless_das JSONs; optional filter by type/step.
     data_path = Path(data_dir)
     splits = {}
     for name in ("train", "val", "test"):
@@ -83,8 +77,69 @@ def load_boundless_das_splits(
     return splits["train"], splits["val"], splits["test"]
 
 
+def _example_to_item(ex: Dict, pad_id: int, max_length: Optional[int]) -> Dict[str, torch.Tensor]:
+    # Convert one example dict to dataset item (shared by in-memory and lazy).
+    input_ids = ex["input_ids"]
+    source_input_ids = ex["source_input_ids"]
+    labels = ex["labels"]
+    pos = ex["intervention_ids"][0]
+    if max_length:
+        input_ids = input_ids[:max_length]
+        source_input_ids = source_input_ids[:max_length]
+        labels = labels[:max_length]
+        pos = min(pos, len(input_ids) - 1)
+    return {
+        "input_ids": torch.tensor(input_ids, dtype=torch.long),
+        "source_input_ids": torch.tensor(source_input_ids, dtype=torch.long),
+        "labels": torch.tensor(labels, dtype=torch.long),
+        "intervention_position": int(pos),
+    }
+
+
+class LazyBoundlessDASDataset(Dataset):
+    # Reads one example per __getitem__ from JSONL; avoids loading full JSON into RAM.
+
+    def __init__(
+        self,
+        jsonl_path: Path,
+        pad_id: int,
+        max_length: Optional[int] = None,
+        intervention_type: Optional[str] = None,
+        step: Optional[int] = None,
+    ):
+        self.jsonl_path = jsonl_path
+        self.pad_id = pad_id
+        self.max_length = max_length
+        # One pass: build list of byte offsets for lines that pass the filter
+        self._offsets: List[int] = []
+        with open(jsonl_path) as f:
+            offset = 0
+            for line in f:
+                start = offset
+                offset += len(line.encode("utf-8"))
+                if not line.strip():
+                    continue
+                if intervention_type is not None or step is not None:
+                    ex = json.loads(line)
+                    if intervention_type is not None and ex.get("intervention_type") != intervention_type:
+                        continue
+                    if step is not None and ex.get("step") != step:
+                        continue
+                self._offsets.append(start)
+
+    def __len__(self) -> int:
+        return len(self._offsets)
+
+    def __getitem__(self, i: int) -> Dict[str, torch.Tensor]:
+        with open(self.jsonl_path) as f:
+            f.seek(self._offsets[i])
+            line = f.readline()
+        ex = json.loads(line)
+        return _example_to_item(ex, self.pad_id, self.max_length)
+
+
 class BoundlessDASDataset(Dataset):
-    """Dataset of (input_ids, source_input_ids, labels, intervention_position)."""
+    # Dataset of (input_ids, source_input_ids, labels, intervention_position).
 
     def __init__(self, examples: List[Dict], pad_id: int, max_length: Optional[int] = None):
         self.examples = examples
@@ -96,24 +151,11 @@ class BoundlessDASDataset(Dataset):
 
     def __getitem__(self, i: int) -> Dict[str, torch.Tensor]:
         ex = self.examples[i]
-        input_ids = ex["input_ids"]
-        source_input_ids = ex["source_input_ids"]
-        labels = ex["labels"]
-        pos = ex["intervention_ids"][0]
-        if self.max_length:
-            input_ids = input_ids[: self.max_length]
-            source_input_ids = source_input_ids[: self.max_length]
-            labels = labels[: self.max_length]
-        return {
-            "input_ids": torch.tensor(input_ids, dtype=torch.long),
-            "source_input_ids": torch.tensor(source_input_ids, dtype=torch.long),
-            "labels": torch.tensor(labels, dtype=torch.long),
-            "intervention_position": int(pos),
-        }
+        return _example_to_item(ex, self.pad_id, self.max_length)
 
 
 def collate_boundless_das(batch: List[Dict], pad_id: int):
-    """Pad to max length in batch; stack intervention_position."""
+    # Pad to max length in batch; stack intervention_position.
     max_len = max(b["input_ids"].size(0) for b in batch)
     device = batch[0]["input_ids"].device
 
@@ -164,23 +206,9 @@ def main():
     set_seed(args.seed)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    # Data
-    train_ex, val_ex, test_ex = load_boundless_das_splits(
-        args.data_dir,
-        intervention_type=args.intervention_type,
-        step=args.step,
-    )
-    print(f"Train {len(train_ex)} val {len(val_ex)} test {len(test_ex)}")
-    if len(train_ex) == 0:
-        raise ValueError(
-            "No training examples. Run prepare_boundless_das_dataset first with --max-samples (e.g. 10000). "
-            "Ensure counterfactual JSON has scratchpad/prompt and step/intervention_type."
-        )
-    if len(val_ex) == 0 or len(test_ex) == 0:
-        raise ValueError(
-            "Val or test split is empty (e.g. from very small --max-samples). Use at least ~100 samples so val/test get examples."
-        )
-
+    # Data: use JSONL (lazy) when present to avoid loading full JSON into RAM
+    data_path = Path(args.data_dir)
+    jsonl_train = data_path / "boundless_das_train.jsonl"
     import os
     _prev_hf = os.environ.get("HF_HUB_DISABLE_PROGRESS_BARS")
     os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
@@ -188,17 +216,58 @@ def main():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     pad_id = tokenizer.pad_token_id
+    step_tag = str(args.step) if args.step is not None else "all"
+    log_tag = f"[layer={args.layer} intervention_type={args.intervention_type} step={step_tag}]"
 
-    train_ds = BoundlessDASDataset(train_ex, pad_id, args.max_length)
-    val_ds = BoundlessDASDataset(val_ex, pad_id, args.max_length)
-    test_ds = BoundlessDASDataset(test_ex, pad_id, args.max_length)
+    if jsonl_train.exists():
+        train_ds = LazyBoundlessDASDataset(
+            data_path / "boundless_das_train.jsonl",
+            pad_id, args.max_length,
+            intervention_type=args.intervention_type, step=args.step,
+        )
+        val_ds = LazyBoundlessDASDataset(
+            data_path / "boundless_das_val.jsonl",
+            pad_id, args.max_length,
+            intervention_type=args.intervention_type, step=args.step,
+        )
+        test_ds = LazyBoundlessDASDataset(
+            data_path / "boundless_das_test.jsonl",
+            pad_id, args.max_length,
+            intervention_type=args.intervention_type, step=args.step,
+        )
+        print(f"Train {len(train_ds)} val {len(val_ds)} test {len(test_ds)} (lazy from JSONL) {log_tag}")
+    else:
+        train_ex, val_ex, test_ex = load_boundless_das_splits(
+            args.data_dir,
+            intervention_type=args.intervention_type,
+            step=args.step,
+        )
+        print(f"Train {len(train_ex)} val {len(val_ex)} test {len(test_ex)} {log_tag}")
+        train_ds = BoundlessDASDataset(train_ex, pad_id, args.max_length)
+        val_ds = BoundlessDASDataset(val_ex, pad_id, args.max_length)
+        test_ds = BoundlessDASDataset(test_ex, pad_id, args.max_length)
+
+    if len(train_ds) == 0:
+        raise ValueError(
+            "No training examples. Run prepare_boundless_das_dataset first with --max-samples (e.g. 10000). "
+            "Ensure counterfactual JSON has scratchpad/prompt and step/intervention_type."
+        )
+    if len(val_ds) == 0 or len(test_ds) == 0:
+        raise ValueError(
+            "Val or test split is empty (e.g. from very small --max-samples). Use at least ~100 samples so val/test get examples."
+        )
+    print(f"Config {log_tag}")
     collate = lambda b: collate_boundless_das(b, pad_id)
-    train_loader = DataLoader(train_ds, batch_size=args.batch_size, shuffle=True, collate_fn=collate)
-    val_loader = DataLoader(val_ds, batch_size=args.batch_size, collate_fn=collate)
-    test_loader = DataLoader(test_ds, batch_size=args.batch_size, collate_fn=collate)
+    # num_workers=0 and pin_memory=False to avoid extra GPU/CPU memory from prefetch
+    train_loader = DataLoader(
+        train_ds, batch_size=args.batch_size, shuffle=True, collate_fn=collate,
+        num_workers=0, pin_memory=False,
+    )
+    val_loader = DataLoader(val_ds, batch_size=args.batch_size, collate_fn=collate, num_workers=0, pin_memory=False)
+    test_loader = DataLoader(test_ds, batch_size=args.batch_size, collate_fn=collate, num_workers=0, pin_memory=False)
 
     # Model (quiet load)
-    print(f"Loading model {args.model_name}")
+    print(f"Loading model {args.model_name} {log_tag}")
     try:
         model = AutoModelForCausalLM.from_pretrained(args.model_name, dtype=torch.bfloat16)
     except TypeError:
@@ -217,6 +286,8 @@ def main():
     intervenable = IntervenableModel(config, model)
     intervenable.set_device(device)
     intervenable.disable_model_gradients()
+    if device == "cuda":
+        torch.cuda.empty_cache()
 
     # Optimizer & scheduler
     t_total = len(train_loader) * args.epochs
@@ -245,13 +316,17 @@ def main():
 
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     intervenable.model.train()
-    print("Model trainable params: ", count_parameters(intervenable.model))
-    print("Intervention trainable params: ", intervenable.count_parameters())
+    print(f"Model trainable params: {count_parameters(intervenable.model)} {log_tag}")
+    print(f"Intervention trainable params: {intervenable.count_parameters()} {log_tag}")
 
     # Training loop with IIA streaming
+    last_train_iia = None
+    last_mean_loss = None
     for epoch in trange(args.epochs, desc="Epoch"):
         epoch_iia_sum = 0.0
         epoch_iia_count = 0
+        epoch_loss_sum = 0.0
+        epoch_loss_count = 0
         pbar = tqdm(train_loader, desc=f"Epoch {epoch}")
         for step, batch in enumerate(pbar):
             for k, v in batch.items():
@@ -274,11 +349,19 @@ def main():
             loss = calculate_loss(logits, labels_b, intervenable)
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
+            epoch_loss_sum += loss.item() * b_s
+            epoch_loss_count += b_s
             loss.backward()
+            # Free large tensors before next batch to reduce peak GPU memory
+            del logits, counterfactual_outputs
+            if device == "cuda":
+                torch.cuda.empty_cache()
             if (total_step + 1) % args.gradient_accumulation_steps == 0:
                 optimizer.step()
                 scheduler.step()
                 intervenable.set_zero_grad()
+                if device == "cuda":
+                    torch.cuda.empty_cache()
             total_step += 1
             if total_step < len(temperature_schedule):
                 intervenable.set_temperature(temperature_schedule[total_step])
@@ -301,13 +384,16 @@ def main():
                         val_iia_sum += compute_iia(out.logits, v_batch["labels"], last_token_only=True) * bv
                         val_n += bv
                 val_iia = val_iia_sum / val_n if val_n else 0.0
-                pbar.write(f"  [Val] IIA: {val_iia:.4f}")
+                pbar.write(f"  [Val] IIA: {val_iia:.4f} {log_tag}")
                 intervenable.model.train()
         train_iia_epoch = epoch_iia_sum / epoch_iia_count if epoch_iia_count else 0.0
-        print(f"Epoch {epoch} train IIA: {train_iia_epoch:.4f}")
+        mean_loss_epoch = epoch_loss_sum / epoch_loss_count if epoch_loss_count else 0.0
+        last_train_iia = train_iia_epoch
+        last_mean_loss = mean_loss_epoch
+        print(f"Epoch {epoch} train IIA: {train_iia_epoch:.4f} mean_loss: {mean_loss_epoch:.4f} {log_tag}")
 
     # Test split IIA
-    print("Evaluating IIA on test split...")
+    print(f"Evaluating IIA on test split {log_tag}...")
     intervenable.eval()
     test_iia_sum, test_n = 0.0, 0
     with torch.no_grad():
@@ -325,11 +411,35 @@ def main():
             test_iia_sum += compute_iia(out.logits, batch["labels"], last_token_only=True) * bn
             test_n += bn
     test_iia = test_iia_sum / test_n if test_n else 0.0
-    print(f"Test IIA: {test_iia:.4f}")
+    print(f"Test IIA: {test_iia:.4f} {log_tag}")
     with open(Path(args.output_dir) / "test_iia.json", "w") as f:
-        json.dump({"test_iia": test_iia, "n_test": test_n}, f, indent=2)
+        json.dump(
+            {"test_iia": test_iia, "n_test": test_n, "layer": args.layer, "intervention_type": args.intervention_type, "step": args.step},
+            f, indent=2,
+        )
     intervenable.save(Path(args.output_dir) / "intervention")
-    print(f"Saved intervention to {args.output_dir}/intervention")
+    print(f"Saved intervention to {args.output_dir}/intervention {log_tag}")
+
+    # Append configuration and results to CSV (under outputs/)
+    n_train = len(train_ds)
+    results_csv = Path(args.output_dir).parent / "boundless_das_results.csv"
+    row = {
+        "layer": args.layer,
+        "intervention_type": args.intervention_type,
+        "step": step_tag,
+        "n_train": n_train,
+        "train_iia": last_train_iia if last_train_iia is not None else "",
+        "mean_loss": last_mean_loss if last_mean_loss is not None else "",
+        "test_iia": test_iia,
+        "output_dir": args.output_dir,
+    }
+    file_exists = results_csv.exists() and results_csv.stat().st_size > 0
+    with open(results_csv, "a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=row.keys())
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(row)
+    print(f"Appended results to {results_csv} {log_tag}")
 
 
 if __name__ == "__main__":

@@ -25,6 +25,8 @@ echo "Start: $(date)"
 REPO_ROOT="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
 cd "$REPO_ROOT"
 mkdir -p .out datasets/boundless_das outputs/boundless_das
+# Reduce CUDA fragmentation (PyTorch recommendation when OOM)
+export PYTORCH_ALLOC_CONF=expandable_segments:True
 # SLURM writes to .out; create it so the job doesn't fail if sbatch doesn't
 
 # Optional: load CUDA if required on your cluster
@@ -33,23 +35,24 @@ mkdir -p .out datasets/boundless_das outputs/boundless_das
 # 1) Prepare dataset (no GPU); --max-samples limits examples (pass via sbatch ... --max-samples N)
 #    To include write_down counterfactuals, run generate_multiplication_dataset.py first, then add:
 #    --counterfactual-dataset-write-down datasets/multiplication_write_down_counterfactual.json
-MAX_SAMPLES="${MAX_SAMPLES:-2000}"
+MAX_SAMPLES="${MAX_SAMPLES:-10000}"
 echo "=== Preparing Boundless DAS dataset (max_samples=${MAX_SAMPLES}) ==="
 uv run python scripts/prepare_boundless_das_dataset.py \
-    --counterfactual-dataset datasets/multiplication_counterfactual.json \
+    --counterfactual-dataset datasets/multiplication_carry_counterfactual.json \
     --counterfactual-dataset-write-down datasets/multiplication_write_down_counterfactual.json \
     --output-dir datasets/boundless_das \
     --tokenizer Qwen/Qwen2-7B \
-    --max-samples "$MAX_SAMPLES"
+    # --max-samples "$MAX_SAMPLES"
 
 # 2) Train Boundless DAS (GPU)
 echo "=== Training Boundless DAS ==="
 uv run python scripts/train_boundless_das.py \
     --data-dir datasets/boundless_das \
     --model-name Qwen/Qwen2-7B \
-    --layer 25 \
+    --layer 5 \
     --epochs 1 \
-    --batch-size 16 \
+    --batch-size 8 \
+    --gradient-accumulation-steps 2 \
     --output-dir outputs/boundless_das \
     --intervention-type "carry_over" \
     --step 0 \

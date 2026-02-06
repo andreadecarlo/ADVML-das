@@ -190,6 +190,11 @@ def prepare_boundless_das_dataset(
         with open(out_file, "w") as f:
             json.dump(split_data, f, indent=2)
         print(f"  Saved {len(split_data)} examples to {out_file.name}")
+        # Also write JSONL for lazy loading in trainer (avoids loading full JSON into RAM)
+        jsonl_file = output_path / f"boundless_das_{split_name}.jsonl"
+        with open(jsonl_file, "w") as f:
+            for ex in split_data:
+                f.write(json.dumps(ex) + "\n")
     print(f"\nAll datasets saved to {output_path}/")
 
 

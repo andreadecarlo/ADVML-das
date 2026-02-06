@@ -41,13 +41,13 @@ def find_write_down_token_position(
     Returns:
         Token position of the write-down value, or None if not found
     """
-    # Split prompt into lines (prompt is scratchpad-only: step 0 = first line, step 1 = second, etc.)
+    # Split prompt into lines. Scratchpad has intro line first ("Multiply X by Y step by step."),
+    # then step 0 (ones) on line 1, step 1 (tens) on line 2, etc.
     lines = prompt.split('\n')
-    
-    if step >= len(lines):
+    step_line_idx = step + 1
+    if step_line_idx >= len(lines):
         return None
-    
-    step_line = lines[step]
+    step_line = lines[step_line_idx]
     
     # Find "Write down X" in this line
     write_down_text = f"Write down {write_down_value}"
@@ -84,7 +84,7 @@ def find_write_down_token_position(
     if idx != -1:
         # Offset of first char of the value (after "Write down ")
         value_char_in_line = idx + len("Write down ")
-        line_start = sum(len(line) + 1 for line in lines[:step])  # +1 for newline
+        line_start = sum(len(line) + 1 for line in lines[:step_line_idx])  # +1 for newline
         char_offset_in_prompt = line_start + value_char_in_line
         return _token_position_from_char_offset(tokenizer, prompt, char_offset_in_prompt)
     return None
@@ -108,13 +108,13 @@ def find_carry_over_token_position(
     Returns:
         Token position of the carry-over value, or None if not found
     """
-    # Split prompt into lines (prompt is scratchpad-only: step 0 = first line, step 1 = second, etc.)
+    # Split prompt into lines. Scratchpad has intro line first ("Multiply X by Y step by step."),
+    # then step 0 (ones) on line 1, step 1 (tens) on line 2, etc.
     lines = prompt.split('\n')
-    
-    if step >= len(lines):
+    step_line_idx = step + 1
+    if step_line_idx >= len(lines):
         return None
-    
-    step_line = lines[step]
+    step_line = lines[step_line_idx]
     
     # Find "carry over X" in this line
     carry_text = f"carry over {carry_value}"
@@ -149,7 +149,7 @@ def find_carry_over_token_position(
     idx = step_line.find(prefix)
     if idx != -1:
         value_char_offset = idx + len("carry over ")
-        line_start = sum(len(line) + 1 for line in lines[:step])
+        line_start = sum(len(line) + 1 for line in lines[:step_line_idx])
         char_offset_in_prompt = line_start + value_char_offset
         return _token_position_from_char_offset(tokenizer, prompt, char_offset_in_prompt)
     return None
