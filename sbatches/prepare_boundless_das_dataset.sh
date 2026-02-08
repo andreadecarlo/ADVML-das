@@ -30,15 +30,15 @@ MAX_SAMPLES="${MAX_SAMPLES:-30000}"
 # Limit operand ranges to reduce combinatorial explosion (default: 2-digit x 1-digit).
 X_DIGITS="${X_DIGITS:-2}"
 Y_DIGITS="${Y_DIGITS:-1}"
-echo "=== Preparing canonical Boundless DAS dataset (MAX_SAMPLES=$MAX_SAMPLES) ==="
+echo "=== Preparing canonical Boundless DAS dataset ==="
 uv run python scripts/prepare_boundless_das_dataset.py \
     --counterfactual-dataset datasets/multiplication_carry_counterfactual.json \
     --counterfactual-dataset-write-down datasets/multiplication_write_down_counterfactual.json \
     --output-dir datasets/boundless_das \
     --tokenizer Qwen/Qwen2-7B \
-    --max-samples "$MAX_SAMPLES" \
     --x-digits "$X_DIGITS" \
     --y-digits "$Y_DIGITS"
+    # --max-samples "$MAX_SAMPLES" \
 
 echo "End: $(date)"
 

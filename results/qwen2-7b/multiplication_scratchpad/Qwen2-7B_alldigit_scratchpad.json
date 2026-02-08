@@ -1,0 +1,618 @@
+{
+  "model": "Qwen/Qwen2-7B",
+  "prompt_type": "scratchpad",
+  "by_file": {
+    "multiplication_factual.json": {
+      "correct": 388,
+      "total": 400,
+      "accuracy": 0.97
+    }
+  },
+  "overall": {
+    "correct": 388,
+    "total": 400,
+    "accuracy": 0.97
+  },
+  "examples": [
+    {
+      "prompt": "What is 692 times 8?\nMultiply 692 by 8 step by step.\nMultiply 8 by the digit in the ones place of 692, which is 2. We get 16. Write down 6 and carry over 1.\nMultiply 8 by the digit in the tens place of 692, which is 9. Add the carryover 1. We get 73. Write down 3 and carry over 7.\nMultiply 8 by the digit in the hundreds place of 692, which is 6. Add the carryover 7. We get 55. Write down 5 and carry over 5.\nWe finally get ",
+      "answer": 5536,
+      "expected_answer": 5536,
+      "raw_output": "5536."
+    },
+    {
+      "prompt": "What is 162 times 2?\nMultiply 162 by 2 step by step.\nMultiply 2 by the digit in the ones place of 162, which is 2. We get 4. Write down 4 and carry over 0.\nMultiply 2 by the digit in the tens place of 162, which is 6. We get 12. Write down 2 and carry over 1.\nMultiply 2 by the digit in the hundreds place of 162, which is 1. Add the carryover 1. We get 3. Write down 3 and carry over 0.\nWe finally get ",
+      "answer": 324,
+      "expected_answer": 324,
+      "raw_output": "324."
+    },
+    {
+      "prompt": "What is 671 times 4?\nMultiply 671 by 4 step by step.\nMultiply 4 by the digit in the ones place of 671, which is 1. We get 4. Write down 4 and carry over 0.\nMultiply 4 by the digit in the tens place of 671, which is 7. We get 28. Write down 8 and carry over 2.\nMultiply 4 by the digit in the hundreds place of 671, which is 6. Add the carryover 2. We get 26. Write down 6 and carry over 2.\nWe finally get ",
+      "answer": 2684,
+      "expected_answer": 2684,
+      "raw_output": "2684.\nTherefore, 671 times 4 is 2684.\n####\nThe answer is 671 times 4 is 2684."
+    },
+    {
+      "prompt": "What is 541 times 9?\nMultiply 541 by 9 step by step.\nMultiply 9 by the digit in the ones place of 541, which is 1. We get 9. Write down 9 and carry over 0.\nMultiply 9 by the digit in the tens place of 541, which is 4. We get 36. Write down 6 and carry over 3.\nMultiply 9 by the digit in the hundreds place of 541, which is 5. Add the carryover 3. We get 48. Write down 8 and carry over 4.\nWe finally get ",
+      "answer": 4869,
+      "expected_answer": 4869,
+      "raw_output": "4869.\nSo, 541 times 9 is 4869."
+    },
+    {
+      "prompt": "What is 303 times 9?\nMultiply 303 by 9 step by step.\nMultiply 9 by the digit in the ones place of 303, which is 3. We get 27. Write down 7 and carry over 2.\nMultiply 9 by the digit in the tens place of 303, which is 0. Add the carryover 2. We get 2. Write down 2 and carry over 0.\nMultiply 9 by the digit in the hundreds place of 303, which is 3. We get 27. Write down 7 and carry over 2.\nWe finally get ",
+      "answer": 2727,
+      "expected_answer": 2727,
+      "raw_output": "2727.\nSo, 303 times 9 is 2727."
+    },
+    {
+      "prompt": "What is 609 times 9?\nMultiply 609 by 9 step by step.\nMultiply 9 by the digit in the ones place of 609, which is 9. We get 81. Write down 1 and carry over 8.\nMultiply 9 by the digit in the tens place of 609, which is 0. Add the carryover 8. We get 8. Write down 8 and carry over 0.\nMultiply 9 by the digit in the hundreds place of 609, which is 6. We get 54. Write down 4 and carry over 5.\nWe finally get ",
+      "answer": 5481,
+      "expected_answer": 5481,
+      "raw_output": "5481.\nSo, 609 times 9 is 5481."
+    },
+    {
+      "prompt": "What is 787 times 2?\nMultiply 787 by 2 step by step.\nMultiply 2 by the digit in the ones place of 787, which is 7. We get 14. Write down 4 and carry over 1.\nMultiply 2 by the digit in the tens place of 787, which is 8. Add the carryover 1. We get 17. Write down 7 and carry over 1.\nMultiply 2 by the digit in the hundreds place of 787, which is 7. Add the carryover 1. We get 15. Write down 5 and carry over 1.\nWe finally get ",
+      "answer": 1574,
+      "expected_answer": 1574,
+      "raw_output": "1574.\nSo, 787 times 2 is 1574."
+    },
+    {
+      "prompt": "What is 422 times 8?\nMultiply 422 by 8 step by step.\nMultiply 8 by the digit in the ones place of 422, which is 2. We get 16. Write down 6 and carry over 1.\nMultiply 8 by the digit in the tens place of 422, which is 2. Add the carryover 1. We get 17. Write down 7 and carry over 1.\nMultiply 8 by the digit in the hundreds place of 422, which is 4. Add the carryover 1. We get 33. Write down 3 and carry over 3.\nWe finally get ",
+      "answer": 3376,
+      "expected_answer": 3376,
+      "raw_output": "3376.\n####\nThe answer is 422 times 8 is 3376."
+    },
+    {
+      "prompt": "What is 778 times 4?\nMultiply 778 by 4 step by step.\nMultiply 4 by the digit in the ones place of 778, which is 8. We get 32. Write down 2 and carry over 3.\nMultiply 4 by the digit in the tens place of 778, which is 7. Add the carryover 3. We get 31. Write down 1 and carry over 3.\nMultiply 4 by the digit in the hundreds place of 778, which is 7. Add the carryover 3. We get 31. Write down 1 and carry over 3.\nWe finally get ",
+      "answer": 3112,
+      "expected_answer": 3112,
+      "raw_output": "3112.\nSo, 778 times 4 is 3112."
+    },
+    {
+      "prompt": "What is 5 times 9?\nMultiply 5 by 9 step by step.\nMultiply 9 by the digit in the ones place of 5, which is 5. We get 45. Write down 5 and carry over 4.\nWe finally get ",
+      "answer": 45,
+      "expected_answer": 45,
+      "raw_output": "45.\nMultiply 9 by the digit in the tens place of 5, which is 0. We get 0. Add the carried over 4. We get 4.\nWe finally get 45.\nTherefore, 5"
+    },
+    {
+      "prompt": "What is 140 times 9?\nMultiply 140 by 9 step by step.\nMultiply 9 by the digit in the ones place of 140, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 9 by the digit in the tens place of 140, which is 4. We get 36. Write down 6 and carry over 3.\nMultiply 9 by the digit in the hundreds place of 140, which is 1. Add the carryover 3. We get 12. Write down 2 and carry over 1.\nWe finally get ",
+      "answer": 1260,
+      "expected_answer": 1260,
+      "raw_output": "1260.\nSo, 140 times 9 is 1260."
+    },
+    {
+      "prompt": "What is 170 times 7?\nMultiply 170 by 7 step by step.\nMultiply 7 by the digit in the ones place of 170, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 7 by the digit in the tens place of 170, which is 7. We get 49. Write down 9 and carry over 4.\nMultiply 7 by the digit in the hundreds place of 170, which is 1. Add the carryover 4. We get 11. Write down 1 and carry over 1.\nWe finally get ",
+      "answer": 1190,
+      "expected_answer": 1190,
+      "raw_output": "1190.\nTherefore, 170 times 7 is 1190.\n####\nThe answer is 170 times 7 is 1190."
+    },
+    {
+      "prompt": "What is 642 times 3?\nMultiply 642 by 3 step by step.\nMultiply 3 by the digit in the ones place of 642, which is 2. We get 6. Write down 6 and carry over 0.\nMultiply 3 by the digit in the tens place of 642, which is 4. We get 12. Write down 2 and carry over 1.\nMultiply 3 by the digit in the hundreds place of 642, which is 6. Add the carryover 1. We get 19. Write down 9 and carry over 1.\nWe finally get ",
+      "answer": 1926,
+      "expected_answer": 1926,
+      "raw_output": "1926.\n####\nThe answer is 642 times 3 is 1926."
+    },
+    {
+      "prompt": "What is 644 times 1?\nMultiply 644 by 1 step by step.\nMultiply 1 by the digit in the ones place of 644, which is 4. We get 4. Write down 4 and carry over 0.\nMultiply 1 by the digit in the tens place of 644, which is 4. We get 4. Write down 4 and carry over 0.\nMultiply 1 by the digit in the hundreds place of 644, which is 6. We get 6. Write down 6 and carry over 0.\nWe finally get ",
+      "answer": 644,
+      "expected_answer": 644,
+      "raw_output": "644."
+    },
+    {
+      "prompt": "What is 418 times 9?\nMultiply 418 by 9 step by step.\nMultiply 9 by the digit in the ones place of 418, which is 8. We get 72. Write down 2 and carry over 7.\nMultiply 9 by the digit in the tens place of 418, which is 1. Add the carryover 7. We get 16. Write down 6 and carry over 1.\nMultiply 9 by the digit in the hundreds place of 418, which is 4. Add the carryover 1. We get 37. Write down 7 and carry over 3.\nWe finally get ",
+      "answer": 3762,
+      "expected_answer": 3762,
+      "raw_output": "3762.\n####\nThe answer is 418 times 9 is 3762."
+    },
+    {
+      "prompt": "What is 697 times 2?\nMultiply 697 by 2 step by step.\nMultiply 2 by the digit in the ones place of 697, which is 7. We get 14. Write down 4 and carry over 1.\nMultiply 2 by the digit in the tens place of 697, which is 9. Add the carryover 1. We get 19. Write down 9 and carry over 1.\nMultiply 2 by the digit in the hundreds place of 697, which is 6. Add the carryover 1. We get 13. Write down 3 and carry over 1.\nWe finally get ",
+      "answer": 1394,
+      "expected_answer": 1394,
+      "raw_output": "1394."
+    },
+    {
+      "prompt": "What is 376 times 5?\nMultiply 376 by 5 step by step.\nMultiply 5 by the digit in the ones place of 376, which is 6. We get 30. Write down 0 and carry over 3.\nMultiply 5 by the digit in the tens place of 376, which is 7. Add the carryover 3. We get 38. Write down 8 and carry over 3.\nMultiply 5 by the digit in the hundreds place of 376, which is 3. Add the carryover 3. We get 18. Write down 8 and carry over 1.\nWe finally get ",
+      "answer": 1880,
+      "expected_answer": 1880,
+      "raw_output": "1880.\n####\nThe answer is 376 times 5 is 1880."
+    },
+    {
+      "prompt": "What is 441 times 6?\nMultiply 441 by 6 step by step.\nMultiply 6 by the digit in the ones place of 441, which is 1. We get 6. Write down 6 and carry over 0.\nMultiply 6 by the digit in the tens place of 441, which is 4. We get 24. Write down 4 and carry over 2.\nMultiply 6 by the digit in the hundreds place of 441, which is 4. Add the carryover 2. We get 26. Write down 6 and carry over 2.\nWe finally get ",
+      "answer": 2646,
+      "expected_answer": 2646,
+      "raw_output": "2646.\n####\nThe answer is 441 times 6 is 2646."
+    },
+    {
+      "prompt": "What is 197 times 1?\nMultiply 197 by 1 step by step.\nMultiply 1 by the digit in the ones place of 197, which is 7. We get 7. Write down 7 and carry over 0.\nMultiply 1 by the digit in the tens place of 197, which is 9. We get 9. Write down 9 and carry over 0.\nMultiply 1 by the digit in the hundreds place of 197, which is 1. We get 1. Write down 1 and carry over 0.\nWe finally get ",
+      "answer": 197,
+      "expected_answer": 197,
+      "raw_output": "197."
+    },
+    {
+      "prompt": "What is 943 times 3?\nMultiply 943 by 3 step by step.\nMultiply 3 by the digit in the ones place of 943, which is 3. We get 9. Write down 9 and carry over 0.\nMultiply 3 by the digit in the tens place of 943, which is 4. We get 12. Write down 2 and carry over 1.\nMultiply 3 by the digit in the hundreds place of 943, which is 9. Add the carryover 1. We get 28. Write down 8 and carry over 2.\nWe finally get ",
+      "answer": 2829,
+      "expected_answer": 2829,
+      "raw_output": "2829.\n####\nThe answer is 943 times 3 is 2829."
+    },
+    {
+      "prompt": "What is 926 times 5?\nMultiply 926 by 5 step by step.\nMultiply 5 by the digit in the ones place of 926, which is 6. We get 30. Write down 0 and carry over 3.\nMultiply 5 by the digit in the tens place of 926, which is 2. Add the carryover 3. We get 13. Write down 3 and carry over 1.\nMultiply 5 by the digit in the hundreds place of 926, which is 9. Add the carryover 1. We get 46. Write down 6 and carry over 4.\nWe finally get ",
+      "answer": 4630,
+      "expected_answer": 4630,
+      "raw_output": "4630.\n####\nThe answer is 926 times 5 is 4630."
+    },
+    {
+      "prompt": "What is 356 times 2?\nMultiply 356 by 2 step by step.\nMultiply 2 by the digit in the ones place of 356, which is 6. We get 12. Write down 2 and carry over 1.\nMultiply 2 by the digit in the tens place of 356, which is 5. Add the carryover 1. We get 11. Write down 1 and carry over 1.\nMultiply 2 by the digit in the hundreds place of 356, which is 3. Add the carryover 1. We get 7. Write down 7 and carry over 0.\nWe finally get ",
+      "answer": 712,
+      "expected_answer": 712,
+      "raw_output": "712.\nTherefore, 356 times 2 is 712.\n####\nThe answer is 356 times 2 is 712."
+    },
+    {
+      "prompt": "What is 162 times 4?\nMultiply 162 by 4 step by step.\nMultiply 4 by the digit in the ones place of 162, which is 2. We get 8. Write down 8 and carry over 0.\nMultiply 4 by the digit in the tens place of 162, which is 6. We get 24. Write down 4 and carry over 2.\nMultiply 4 by the digit in the hundreds place of 162, which is 1. Add the carryover 2. We get 6. Write down 6 and carry over 0.\nWe finally get ",
+      "answer": 648,
+      "expected_answer": 648,
+      "raw_output": "648.\n####\nThe answer is 162 times 4 is 648."
+    },
+    {
+      "prompt": "What is 310 times 5?\nMultiply 310 by 5 step by step.\nMultiply 5 by the digit in the ones place of 310, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 5 by the digit in the tens place of 310, which is 1. We get 5. Write down 5 and carry over 0.\nMultiply 5 by the digit in the hundreds place of 310, which is 3. We get 15. Write down 5 and carry over 1.\nWe finally get ",
+      "answer": 1550,
+      "expected_answer": 1550,
+      "raw_output": "1550.\nTherefore, 310 times 5 is 1550.\n####\nThe answer is 310 times 5 is 1550."
+    },
+    {
+      "prompt": "What is 510 times 5?\nMultiply 510 by 5 step by step.\nMultiply 5 by the digit in the ones place of 510, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 5 by the digit in the tens place of 510, which is 1. We get 5. Write down 5 and carry over 0.\nMultiply 5 by the digit in the hundreds place of 510, which is 5. We get 25. Write down 5 and carry over 2.\nWe finally get ",
+      "answer": 2550,
+      "expected_answer": 2550,
+      "raw_output": "2550."
+    },
+    {
+      "prompt": "What is 170 times 3?\nMultiply 170 by 3 step by step.\nMultiply 3 by the digit in the ones place of 170, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 3 by the digit in the tens place of 170, which is 7. We get 21. Write down 1 and carry over 2.\nMultiply 3 by the digit in the hundreds place of 170, which is 1. Add the carryover 2. We get 5. Write down 5 and carry over 0.\nWe finally get ",
+      "answer": 510,
+      "expected_answer": 510,
+      "raw_output": "510.\nTherefore, 170 times 3 is 510.\n####\nThe answer is 170 times 3 is 510."
+    },
+    {
+      "prompt": "What is 480 times 9?\nMultiply 480 by 9 step by step.\nMultiply 9 by the digit in the ones place of 480, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 9 by the digit in the tens place of 480, which is 8. We get 72. Write down 2 and carry over 7.\nMultiply 9 by the digit in the hundreds place of 480, which is 4. Add the carryover 7. We get 43. Write down 3 and carry over 4.\nWe finally get ",
+      "answer": 4320,
+      "expected_answer": 4320,
+      "raw_output": "4320.\n####\nThe answer is 480 times 9 is 4320."
+    },
+    {
+      "prompt": "What is 950 times 5?\nMultiply 950 by 5 step by step.\nMultiply 5 by the digit in the ones place of 950, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 5 by the digit in the tens place of 950, which is 5. We get 25. Write down 5 and carry over 2.\nMultiply 5 by the digit in the hundreds place of 950, which is 9. Add the carryover 2. We get 47. Write down 7 and carry over 4.\nWe finally get ",
+      "answer": 4750,
+      "expected_answer": 4750,
+      "raw_output": "4750.\nTherefore, 950 times 5 is 4750.\n####\nThe answer is 950 times 5 is 4750."
+    },
+    {
+      "prompt": "What is 187 times 3?\nMultiply 187 by 3 step by step.\nMultiply 3 by the digit in the ones place of 187, which is 7. We get 21. Write down 1 and carry over 2.\nMultiply 3 by the digit in the tens place of 187, which is 8. Add the carryover 2. We get 26. Write down 6 and carry over 2.\nMultiply 3 by the digit in the hundreds place of 187, which is 1. Add the carryover 2. We get 5. Write down 5 and carry over 0.\nWe finally get ",
+      "answer": 561,
+      "expected_answer": 561,
+      "raw_output": "561.\n####\nThe answer is 187 times 3 is 561."
+    },
+    {
+      "prompt": "What is 406 times 4?\nMultiply 406 by 4 step by step.\nMultiply 4 by the digit in the ones place of 406, which is 6. We get 24. Write down 4 and carry over 2.\nMultiply 4 by the digit in the tens place of 406, which is 0. Add the carryover 2. We get 2. Write down 2 and carry over 0.\nMultiply 4 by the digit in the hundreds place of 406, which is 4. We get 16. Write down 6 and carry over 1.\nWe finally get ",
+      "answer": 1624,
+      "expected_answer": 1624,
+      "raw_output": "1624."
+    },
+    {
+      "prompt": "What is 766 times 6?\nMultiply 766 by 6 step by step.\nMultiply 6 by the digit in the ones place of 766, which is 6. We get 36. Write down 6 and carry over 3.\nMultiply 6 by the digit in the tens place of 766, which is 6. Add the carryover 3. We get 39. Write down 9 and carry over 3.\nMultiply 6 by the digit in the hundreds place of 766, which is 7. Add the carryover 3. We get 45. Write down 5 and carry over 4.\nWe finally get ",
+      "answer": 4596,
+      "expected_answer": 4596,
+      "raw_output": "4596.\n####\nThe answer is 766 times 6 is 4596."
+    },
+    {
+      "prompt": "What is 835 times 1?\nMultiply 835 by 1 step by step.\nMultiply 1 by the digit in the ones place of 835, which is 5. We get 5. Write down 5 and carry over 0.\nMultiply 1 by the digit in the tens place of 835, which is 3. We get 3. Write down 3 and carry over 0.\nMultiply 1 by the digit in the hundreds place of 835, which is 8. We get 8. Write down 8 and carry over 0.\nWe finally get ",
+      "answer": 835,
+      "expected_answer": 835,
+      "raw_output": "835."
+    },
+    {
+      "prompt": "What is 690 times 6?\nMultiply 690 by 6 step by step.\nMultiply 6 by the digit in the ones place of 690, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 6 by the digit in the tens place of 690, which is 9. We get 54. Write down 4 and carry over 5.\nMultiply 6 by the digit in the hundreds place of 690, which is 6. Add the carryover 5. We get 41. Write down 1 and carry over 4.\nWe finally get ",
+      "answer": 4140,
+      "expected_answer": 4140,
+      "raw_output": "4140.\nTherefore, 690 times 6 is 4140.\n####\nThe answer is 690 times 6 is 4140."
+    },
+    {
+      "prompt": "What is 201 times 8?\nMultiply 201 by 8 step by step.\nMultiply 8 by the digit in the ones place of 201, which is 1. We get 8. Write down 8 and carry over 0.\nMultiply 8 by the digit in the tens place of 201, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 8 by the digit in the hundreds place of 201, which is 2. We get 16. Write down 6 and carry over 1.\nWe finally get ",
+      "answer": 1608,
+      "expected_answer": 1608,
+      "raw_output": "1608.\nSo, 201 times 8 is 1608."
+    },
+    {
+      "prompt": "What is 710 times 3?\nMultiply 710 by 3 step by step.\nMultiply 3 by the digit in the ones place of 710, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 3 by the digit in the tens place of 710, which is 1. We get 3. Write down 3 and carry over 0.\nMultiply 3 by the digit in the hundreds place of 710, which is 7. We get 21. Write down 1 and carry over 2.\nWe finally get ",
+      "answer": 2130,
+      "expected_answer": 2130,
+      "raw_output": "2130.\nTherefore, 710 times 3 is 2130.\n####\nThe answer is 710 times 3 is 2130."
+    },
+    {
+      "prompt": "What is 881 times 9?\nMultiply 881 by 9 step by step.\nMultiply 9 by the digit in the ones place of 881, which is 1. We get 9. Write down 9 and carry over 0.\nMultiply 9 by the digit in the tens place of 881, which is 8. We get 72. Write down 2 and carry over 7.\nMultiply 9 by the digit in the hundreds place of 881, which is 8. Add the carryover 7. We get 79. Write down 9 and carry over 7.\nWe finally get ",
+      "answer": 7929,
+      "expected_answer": 7929,
+      "raw_output": "7929.\n####\nThe answer is 881 times 9 is 7929."
+    },
+    {
+      "prompt": "What is 490 times 9?\nMultiply 490 by 9 step by step.\nMultiply 9 by the digit in the ones place of 490, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 9 by the digit in the tens place of 490, which is 9. We get 81. Write down 1 and carry over 8.\nMultiply 9 by the digit in the hundreds place of 490, which is 4. Add the carryover 8. We get 44. Write down 4 and carry over 4.\nWe finally get ",
+      "answer": 4410,
+      "expected_answer": 4410,
+      "raw_output": "4410.\nSo, 490 times 9 is 4410."
+    },
+    {
+      "prompt": "What is 649 times 3?\nMultiply 649 by 3 step by step.\nMultiply 3 by the digit in the ones place of 649, which is 9. We get 27. Write down 7 and carry over 2.\nMultiply 3 by the digit in the tens place of 649, which is 4. Add the carryover 2. We get 14. Write down 4 and carry over 1.\nMultiply 3 by the digit in the hundreds place of 649, which is 6. Add the carryover 1. We get 19. Write down 9 and carry over 1.\nWe finally get ",
+      "answer": 1947,
+      "expected_answer": 1947,
+      "raw_output": "1947.\n####\nThe answer is 649 times 3 is 1947."
+    },
+    {
+      "prompt": "What is 337 times 9?\nMultiply 337 by 9 step by step.\nMultiply 9 by the digit in the ones place of 337, which is 7. We get 63. Write down 3 and carry over 6.\nMultiply 9 by the digit in the tens place of 337, which is 3. Add the carryover 6. We get 33. Write down 3 and carry over 3.\nMultiply 9 by the digit in the hundreds place of 337, which is 3. Add the carryover 3. We get 30. Write down 0 and carry over 3.\nWe finally get ",
+      "answer": 3033,
+      "expected_answer": 3033,
+      "raw_output": "3033."
+    },
+    {
+      "prompt": "What is 584 times 3?\nMultiply 584 by 3 step by step.\nMultiply 3 by the digit in the ones place of 584, which is 4. We get 12. Write down 2 and carry over 1.\nMultiply 3 by the digit in the tens place of 584, which is 8. Add the carryover 1. We get 25. Write down 5 and carry over 2.\nMultiply 3 by the digit in the hundreds place of 584, which is 5. Add the carryover 2. We get 17. Write down 7 and carry over 1.\nWe finally get ",
+      "answer": 1752,
+      "expected_answer": 1752,
+      "raw_output": "1752.\nSo, 584 times 3 is 1752."
+    },
+    {
+      "prompt": "What is 270 times 8?\nMultiply 270 by 8 step by step.\nMultiply 8 by the digit in the ones place of 270, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 8 by the digit in the tens place of 270, which is 7. We get 56. Write down 6 and carry over 5.\nMultiply 8 by the digit in the hundreds place of 270, which is 2. Add the carryover 5. We get 21. Write down 1 and carry over 2.\nWe finally get ",
+      "answer": 2160,
+      "expected_answer": 2160,
+      "raw_output": "2160.\nSo, 270 times 8 is 2160."
+    },
+    {
+      "prompt": "What is 956 times 8?\nMultiply 956 by 8 step by step.\nMultiply 8 by the digit in the ones place of 956, which is 6. We get 48. Write down 8 and carry over 4.\nMultiply 8 by the digit in the tens place of 956, which is 5. Add the carryover 4. We get 44. Write down 4 and carry over 4.\nMultiply 8 by the digit in the hundreds place of 956, which is 9. Add the carryover 4. We get 76. Write down 6 and carry over 7.\nWe finally get ",
+      "answer": 7648,
+      "expected_answer": 7648,
+      "raw_output": "7648.\n####\nThe answer is 956 times 8 is 7648."
+    },
+    {
+      "prompt": "What is 235 times 4?\nMultiply 235 by 4 step by step.\nMultiply 4 by the digit in the ones place of 235, which is 5. We get 20. Write down 0 and carry over 2.\nMultiply 4 by the digit in the tens place of 235, which is 3. Add the carryover 2. We get 14. Write down 4 and carry over 1.\nMultiply 4 by the digit in the hundreds place of 235, which is 2. Add the carryover 1. We get 9. Write down 9 and carry over 0.\nWe finally get ",
+      "answer": 940,
+      "expected_answer": 940,
+      "raw_output": "940.\nSo, 235 times 4 is 940."
+    },
+    {
+      "prompt": "What is 31 times 5?\nMultiply 31 by 5 step by step.\nMultiply 5 by the digit in the ones place of 31, which is 1. We get 5. Write down 5 and carry over 0.\nMultiply 5 by the digit in the tens place of 31, which is 3. We get 15. Write down 5 and carry over 1.\nWe finally get ",
+      "answer": 155,
+      "expected_answer": 155,
+      "raw_output": "155.\nTherefore, 31 times 5 is 155.\n####\nThe answer is 31 times 5 is 155."
+    },
+    {
+      "prompt": "What is 765 times 5?\nMultiply 765 by 5 step by step.\nMultiply 5 by the digit in the ones place of 765, which is 5. We get 25. Write down 5 and carry over 2.\nMultiply 5 by the digit in the tens place of 765, which is 6. Add the carryover 2. We get 32. Write down 2 and carry over 3.\nMultiply 5 by the digit in the hundreds place of 765, which is 7. Add the carryover 3. We get 38. Write down 8 and carry over 3.\nWe finally get ",
+      "answer": 3825,
+      "expected_answer": 3825,
+      "raw_output": "3825.\nTherefore, 765 times 5 is 3825.\n####\nThe answer is 765 times 5 is 3825."
+    },
+    {
+      "prompt": "What is 686 times 4?\nMultiply 686 by 4 step by step.\nMultiply 4 by the digit in the ones place of 686, which is 6. We get 24. Write down 4 and carry over 2.\nMultiply 4 by the digit in the tens place of 686, which is 8. Add the carryover 2. We get 34. Write down 4 and carry over 3.\nMultiply 4 by the digit in the hundreds place of 686, which is 6. Add the carryover 3. We get 27. Write down 7 and carry over 2.\nWe finally get ",
+      "answer": 2744,
+      "expected_answer": 2744,
+      "raw_output": "2744.\n####\nThe answer is 686 times 4 is 2744."
+    },
+    {
+      "prompt": "What is 803 times 5?\nMultiply 803 by 5 step by step.\nMultiply 5 by the digit in the ones place of 803, which is 3. We get 15. Write down 5 and carry over 1.\nMultiply 5 by the digit in the tens place of 803, which is 0. Add the carryover 1. We get 1. Write down 1 and carry over 0.\nMultiply 5 by the digit in the hundreds place of 803, which is 8. We get 40. Write down 0 and carry over 4.\nWe finally get ",
+      "answer": 4015,
+      "expected_answer": 4015,
+      "raw_output": "4015.\n####\nThe answer is 803 times 5 is 4015."
+    },
+    {
+      "prompt": "What is 152 times 3?\nMultiply 152 by 3 step by step.\nMultiply 3 by the digit in the ones place of 152, which is 2. We get 6. Write down 6 and carry over 0.\nMultiply 3 by the digit in the tens place of 152, which is 5. We get 15. Write down 5 and carry over 1.\nMultiply 3 by the digit in the hundreds place of 152, which is 1. Add the carryover 1. We get 4. Write down 4 and carry over 0.\nWe finally get ",
+      "answer": 456,
+      "expected_answer": 456,
+      "raw_output": "456.\n####\nThe answer is 152 times 3 is 456."
+    },
+    {
+      "prompt": "What is 580 times 8?\nMultiply 580 by 8 step by step.\nMultiply 8 by the digit in the ones place of 580, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 8 by the digit in the tens place of 580, which is 8. We get 64. Write down 4 and carry over 6.\nMultiply 8 by the digit in the hundreds place of 580, which is 5. Add the carryover 6. We get 46. Write down 6 and carry over 4.\nWe finally get ",
+      "answer": 4640,
+      "expected_answer": 4640,
+      "raw_output": "4640.\nSo, 580 times 8 is 4640."
+    },
+    {
+      "prompt": "What is 877 times 1?\nMultiply 877 by 1 step by step.\nMultiply 1 by the digit in the ones place of 877, which is 7. We get 7. Write down 7 and carry over 0.\nMultiply 1 by the digit in the tens place of 877, which is 7. We get 7. Write down 7 and carry over 0.\nMultiply 1 by the digit in the hundreds place of 877, which is 8. We get 8. Write down 8 and carry over 0.\nWe finally get ",
+      "answer": 877,
+      "expected_answer": 877,
+      "raw_output": "877."
+    },
+    {
+      "prompt": "What is 859 times 3?\nMultiply 859 by 3 step by step.\nMultiply 3 by the digit in the ones place of 859, which is 9. We get 27. Write down 7 and carry over 2.\nMultiply 3 by the digit in the tens place of 859, which is 5. Add the carryover 2. We get 17. Write down 7 and carry over 1.\nMultiply 3 by the digit in the hundreds place of 859, which is 8. Add the carryover 1. We get 25. Write down 5 and carry over 2.\nWe finally get ",
+      "answer": 2577,
+      "expected_answer": 2577,
+      "raw_output": "2577.\n####\nThe answer is 859 times 3 is 2577."
+    },
+    {
+      "prompt": "What is 714 times 1?\nMultiply 714 by 1 step by step.\nMultiply 1 by the digit in the ones place of 714, which is 4. We get 4. Write down 4 and carry over 0.\nMultiply 1 by the digit in the tens place of 714, which is 1. We get 1. Write down 1 and carry over 0.\nMultiply 1 by the digit in the hundreds place of 714, which is 7. We get 7. Write down 7 and carry over 0.\nWe finally get ",
+      "answer": 714,
+      "expected_answer": 714,
+      "raw_output": "714."
+    },
+    {
+      "prompt": "What is 964 times 8?\nMultiply 964 by 8 step by step.\nMultiply 8 by the digit in the ones place of 964, which is 4. We get 32. Write down 2 and carry over 3.\nMultiply 8 by the digit in the tens place of 964, which is 6. Add the carryover 3. We get 51. Write down 1 and carry over 5.\nMultiply 8 by the digit in the hundreds place of 964, which is 9. Add the carryover 5. We get 77. Write down 7 and carry over 7.\nWe finally get ",
+      "answer": 7712,
+      "expected_answer": 7712,
+      "raw_output": "7712."
+    },
+    {
+      "prompt": "What is 131 times 8?\nMultiply 131 by 8 step by step.\nMultiply 8 by the digit in the ones place of 131, which is 1. We get 8. Write down 8 and carry over 0.\nMultiply 8 by the digit in the tens place of 131, which is 3. We get 24. Write down 4 and carry over 2.\nMultiply 8 by the digit in the hundreds place of 131, which is 1. Add the carryover 2. We get 10. Write down 0 and carry over 1.\nWe finally get ",
+      "answer": 1048,
+      "expected_answer": 1048,
+      "raw_output": "1048.\n####\nThe answer is 131 times 8 is 1048."
+    },
+    {
+      "prompt": "What is 403 times 3?\nMultiply 403 by 3 step by step.\nMultiply 3 by the digit in the ones place of 403, which is 3. We get 9. Write down 9 and carry over 0.\nMultiply 3 by the digit in the tens place of 403, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 3 by the digit in the hundreds place of 403, which is 4. We get 12. Write down 2 and carry over 1.\nWe finally get ",
+      "answer": 1209,
+      "expected_answer": 1209,
+      "raw_output": "1209."
+    },
+    {
+      "prompt": "What is 845 times 6?\nMultiply 845 by 6 step by step.\nMultiply 6 by the digit in the ones place of 845, which is 5. We get 30. Write down 0 and carry over 3.\nMultiply 6 by the digit in the tens place of 845, which is 4. Add the carryover 3. We get 27. Write down 7 and carry over 2.\nMultiply 6 by the digit in the hundreds place of 845, which is 8. Add the carryover 2. We get 50. Write down 0 and carry over 5.\nWe finally get ",
+      "answer": 5070,
+      "expected_answer": 5070,
+      "raw_output": "5070.\nSo, 845 times 6 is 5070."
+    },
+    {
+      "prompt": "What is 652 times 9?\nMultiply 652 by 9 step by step.\nMultiply 9 by the digit in the ones place of 652, which is 2. We get 18. Write down 8 and carry over 1.\nMultiply 9 by the digit in the tens place of 652, which is 5. Add the carryover 1. We get 46. Write down 6 and carry over 4.\nMultiply 9 by the digit in the hundreds place of 652, which is 6. Add the carryover 4. We get 58. Write down 8 and carry over 5.\nWe finally get ",
+      "answer": 5888,
+      "expected_answer": 5868,
+      "raw_output": "5888.\nSo, 652 times 9 is 5888."
+    },
+    {
+      "prompt": "What is 188 times 5?\nMultiply 188 by 5 step by step.\nMultiply 5 by the digit in the ones place of 188, which is 8. We get 40. Write down 0 and carry over 4.\nMultiply 5 by the digit in the tens place of 188, which is 8. Add the carryover 4. We get 44. Write down 4 and carry over 4.\nMultiply 5 by the digit in the hundreds place of 188, which is 1. Add the carryover 4. We get 9. Write down 9 and carry over 0.\nWe finally get ",
+      "answer": 940,
+      "expected_answer": 940,
+      "raw_output": "940.\n####\nThe answer is 188 times 5 is 940."
+    },
+    {
+      "prompt": "What is 832 times 3?\nMultiply 832 by 3 step by step.\nMultiply 3 by the digit in the ones place of 832, which is 2. We get 6. Write down 6 and carry over 0.\nMultiply 3 by the digit in the tens place of 832, which is 3. We get 9. Write down 9 and carry over 0.\nMultiply 3 by the digit in the hundreds place of 832, which is 8. We get 24. Write down 4 and carry over 2.\nWe finally get ",
+      "answer": 2496,
+      "expected_answer": 2496,
+      "raw_output": "2496.\n####\nThe answer is 832 times 3 is 2496."
+    },
+    {
+      "prompt": "What is 801 times 5?\nMultiply 801 by 5 step by step.\nMultiply 5 by the digit in the ones place of 801, which is 1. We get 5. Write down 5 and carry over 0.\nMultiply 5 by the digit in the tens place of 801, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 5 by the digit in the hundreds place of 801, which is 8. We get 40. Write down 0 and carry over 4.\nWe finally get ",
+      "answer": 4005,
+      "expected_answer": 4005,
+      "raw_output": "4005.\n####\nThe answer is 801 times 5 is 4005."
+    },
+    {
+      "prompt": "What is 439 times 3?\nMultiply 439 by 3 step by step.\nMultiply 3 by the digit in the ones place of 439, which is 9. We get 27. Write down 7 and carry over 2.\nMultiply 3 by the digit in the tens place of 439, which is 3. Add the carryover 2. We get 11. Write down 1 and carry over 1.\nMultiply 3 by the digit in the hundreds place of 439, which is 4. Add the carryover 1. We get 13. Write down 3 and carry over 1.\nWe finally get ",
+      "answer": 1317,
+      "expected_answer": 1317,
+      "raw_output": "1317.\n####\nThe answer is 439 times 3 is 1317."
+    },
+    {
+      "prompt": "What is 643 times 3?\nMultiply 643 by 3 step by step.\nMultiply 3 by the digit in the ones place of 643, which is 3. We get 9. Write down 9 and carry over 0.\nMultiply 3 by the digit in the tens place of 643, which is 4. We get 12. Write down 2 and carry over 1.\nMultiply 3 by the digit in the hundreds place of 643, which is 6. Add the carryover 1. We get 19. Write down 9 and carry over 1.\nWe finally get ",
+      "answer": 1929,
+      "expected_answer": 1929,
+      "raw_output": "1929.\n####\nThe answer is 643 times 3 is 1929."
+    },
+    {
+      "prompt": "What is 284 times 8?\nMultiply 284 by 8 step by step.\nMultiply 8 by the digit in the ones place of 284, which is 4. We get 32. Write down 2 and carry over 3.\nMultiply 8 by the digit in the tens place of 284, which is 8. Add the carryover 3. We get 67. Write down 7 and carry over 6.\nMultiply 8 by the digit in the hundreds place of 284, which is 2. Add the carryover 6. We get 22. Write down 2 and carry over 2.\nWe finally get ",
+      "answer": 2272,
+      "expected_answer": 2272,
+      "raw_output": "2272.\nSo, 284 times 8 is 2272."
+    },
+    {
+      "prompt": "What is 574 times 3?\nMultiply 574 by 3 step by step.\nMultiply 3 by the digit in the ones place of 574, which is 4. We get 12. Write down 2 and carry over 1.\nMultiply 3 by the digit in the tens place of 574, which is 7. Add the carryover 1. We get 22. Write down 2 and carry over 2.\nMultiply 3 by the digit in the hundreds place of 574, which is 5. Add the carryover 2. We get 17. Write down 7 and carry over 1.\nWe finally get ",
+      "answer": 1722,
+      "expected_answer": 1722,
+      "raw_output": "1722.\nSo, 574 times 3 is 1722."
+    },
+    {
+      "prompt": "What is 317 times 9?\nMultiply 317 by 9 step by step.\nMultiply 9 by the digit in the ones place of 317, which is 7. We get 63. Write down 3 and carry over 6.\nMultiply 9 by the digit in the tens place of 317, which is 1. Add the carryover 6. We get 15. Write down 5 and carry over 1.\nMultiply 9 by the digit in the hundreds place of 317, which is 3. Add the carryover 1. We get 28. Write down 8 and carry over 2.\nWe finally get ",
+      "answer": 2853,
+      "expected_answer": 2853,
+      "raw_output": "2853.\nSo, 317 times 9 is 2853."
+    },
+    {
+      "prompt": "What is 957 times 6?\nMultiply 957 by 6 step by step.\nMultiply 6 by the digit in the ones place of 957, which is 7. We get 42. Write down 2 and carry over 4.\nMultiply 6 by the digit in the tens place of 957, which is 5. Add the carryover 4. We get 34. Write down 4 and carry over 3.\nMultiply 6 by the digit in the hundreds place of 957, which is 9. Add the carryover 3. We get 57. Write down 7 and carry over 5.\nWe finally get ",
+      "answer": 5742,
+      "expected_answer": 5742,
+      "raw_output": "5742.\nTherefore, 957 times 6 is 5742.\n####\nThe answer is 957 times 6 is 5742."
+    },
+    {
+      "prompt": "What is 732 times 2?\nMultiply 732 by 2 step by step.\nMultiply 2 by the digit in the ones place of 732, which is 2. We get 4. Write down 4 and carry over 0.\nMultiply 2 by the digit in the tens place of 732, which is 3. We get 6. Write down 6 and carry over 0.\nMultiply 2 by the digit in the hundreds place of 732, which is 7. We get 14. Write down 4 and carry over 1.\nWe finally get ",
+      "answer": 1464,
+      "expected_answer": 1464,
+      "raw_output": "1464.\nTherefore, 732 times 2 is 1464.\n####\nThe answer is 732 times 2 is 1464."
+    },
+    {
+      "prompt": "What is 576 times 8?\nMultiply 576 by 8 step by step.\nMultiply 8 by the digit in the ones place of 576, which is 6. We get 48. Write down 8 and carry over 4.\nMultiply 8 by the digit in the tens place of 576, which is 7. Add the carryover 4. We get 60. Write down 0 and carry over 6.\nMultiply 8 by the digit in the hundreds place of 576, which is 5. Add the carryover 6. We get 46. Write down 6 and carry over 4.\nWe finally get ",
+      "answer": 4608,
+      "expected_answer": 4608,
+      "raw_output": "4608.\nSo, 576 times 8 is 4608."
+    },
+    {
+      "prompt": "What is 366 times 1?\nMultiply 366 by 1 step by step.\nMultiply 1 by the digit in the ones place of 366, which is 6. We get 6. Write down 6 and carry over 0.\nMultiply 1 by the digit in the tens place of 366, which is 6. We get 6. Write down 6 and carry over 0.\nMultiply 1 by the digit in the hundreds place of 366, which is 3. We get 3. Write down 3 and carry over 0.\nWe finally get ",
+      "answer": 366,
+      "expected_answer": 366,
+      "raw_output": "366."
+    },
+    {
+      "prompt": "What is 985 times 5?\nMultiply 985 by 5 step by step.\nMultiply 5 by the digit in the ones place of 985, which is 5. We get 25. Write down 5 and carry over 2.\nMultiply 5 by the digit in the tens place of 985, which is 8. Add the carryover 2. We get 42. Write down 2 and carry over 4.\nMultiply 5 by the digit in the hundreds place of 985, which is 9. Add the carryover 4. We get 49. Write down 9 and carry over 4.\nWe finally get ",
+      "answer": 4925,
+      "expected_answer": 4925,
+      "raw_output": "4925.\n####\nThe answer is 985 times 5 is 4925."
+    },
+    {
+      "prompt": "What is 969 times 2?\nMultiply 969 by 2 step by step.\nMultiply 2 by the digit in the ones place of 969, which is 9. We get 18. Write down 8 and carry over 1.\nMultiply 2 by the digit in the tens place of 969, which is 6. Add the carryover 1. We get 13. Write down 3 and carry over 1.\nMultiply 2 by the digit in the hundreds place of 969, which is 9. Add the carryover 1. We get 19. Write down 9 and carry over 1.\nWe finally get ",
+      "answer": 1938,
+      "expected_answer": 1938,
+      "raw_output": "1938.\n####\nThe answer is 969 times 2 is 1938."
+    },
+    {
+      "prompt": "What is 130 times 8?\nMultiply 130 by 8 step by step.\nMultiply 8 by the digit in the ones place of 130, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 8 by the digit in the tens place of 130, which is 3. We get 24. Write down 4 and carry over 2.\nMultiply 8 by the digit in the hundreds place of 130, which is 1. Add the carryover 2. We get 10. Write down 0 and carry over 1.\nWe finally get ",
+      "answer": 1040,
+      "expected_answer": 1040,
+      "raw_output": "1040.\nSo, 130 times 8 is 1040."
+    },
+    {
+      "prompt": "What is 537 times 9?\nMultiply 537 by 9 step by step.\nMultiply 9 by the digit in the ones place of 537, which is 7. We get 63. Write down 3 and carry over 6.\nMultiply 9 by the digit in the tens place of 537, which is 3. Add the carryover 6. We get 33. Write down 3 and carry over 3.\nMultiply 9 by the digit in the hundreds place of 537, which is 5. Add the carryover 3. We get 48. Write down 8 and carry over 4.\nWe finally get ",
+      "answer": 4833,
+      "expected_answer": 4833,
+      "raw_output": "4833."
+    },
+    {
+      "prompt": "What is 320 times 4?\nMultiply 320 by 4 step by step.\nMultiply 4 by the digit in the ones place of 320, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 4 by the digit in the tens place of 320, which is 2. We get 8. Write down 8 and carry over 0.\nMultiply 4 by the digit in the hundreds place of 320, which is 3. We get 12. Write down 2 and carry over 1.\nWe finally get ",
+      "answer": 1280,
+      "expected_answer": 1280,
+      "raw_output": "1280.\nTherefore, 320 times 4 is 1280.\n####\nThe answer is 320 times 4 is 1280."
+    },
+    {
+      "prompt": "What is 786 times 4?\nMultiply 786 by 4 step by step.\nMultiply 4 by the digit in the ones place of 786, which is 6. We get 24. Write down 4 and carry over 2.\nMultiply 4 by the digit in the tens place of 786, which is 8. Add the carryover 2. We get 34. Write down 4 and carry over 3.\nMultiply 4 by the digit in the hundreds place of 786, which is 7. Add the carryover 3. We get 31. Write down 1 and carry over 3.\nWe finally get ",
+      "answer": 3144,
+      "expected_answer": 3144,
+      "raw_output": "3144.\nSo, 786 times 4 is 3144."
+    },
+    {
+      "prompt": "What is 222 times 3?\nMultiply 222 by 3 step by step.\nMultiply 3 by the digit in the ones place of 222, which is 2. We get 6. Write down 6 and carry over 0.\nMultiply 3 by the digit in the tens place of 222, which is 2. We get 6. Write down 6 and carry over 0.\nMultiply 3 by the digit in the hundreds place of 222, which is 2. We get 6. Write down 6 and carry over 0.\nWe finally get ",
+      "answer": 666,
+      "expected_answer": 666,
+      "raw_output": "666.\nTherefore, 222 times 3 is 666.\n####\nThe answer is 222 times 3 is 666."
+    },
+    {
+      "prompt": "What is 559 times 4?\nMultiply 559 by 4 step by step.\nMultiply 4 by the digit in the ones place of 559, which is 9. We get 36. Write down 6 and carry over 3.\nMultiply 4 by the digit in the tens place of 559, which is 5. Add the carryover 3. We get 23. Write down 3 and carry over 2.\nMultiply 4 by the digit in the hundreds place of 559, which is 5. Add the carryover 2. We get 22. Write down 2 and carry over 2.\nWe finally get ",
+      "answer": 2236,
+      "expected_answer": 2236,
+      "raw_output": "2236.\nSo, 559 times 4 is 2236."
+    },
+    {
+      "prompt": "What is 679 times 6?\nMultiply 679 by 6 step by step.\nMultiply 6 by the digit in the ones place of 679, which is 9. We get 54. Write down 4 and carry over 5.\nMultiply 6 by the digit in the tens place of 679, which is 7. Add the carryover 5. We get 47. Write down 7 and carry over 4.\nMultiply 6 by the digit in the hundreds place of 679, which is 6. Add the carryover 4. We get 40. Write down 0 and carry over 4.\nWe finally get ",
+      "answer": 4074,
+      "expected_answer": 4074,
+      "raw_output": "4074."
+    },
+    {
+      "prompt": "What is 426 times 2?\nMultiply 426 by 2 step by step.\nMultiply 2 by the digit in the ones place of 426, which is 6. We get 12. Write down 2 and carry over 1.\nMultiply 2 by the digit in the tens place of 426, which is 2. Add the carryover 1. We get 5. Write down 5 and carry over 0.\nMultiply 2 by the digit in the hundreds place of 426, which is 4. We get 8. Write down 8 and carry over 0.\nWe finally get ",
+      "answer": 852,
+      "expected_answer": 852,
+      "raw_output": "852."
+    },
+    {
+      "prompt": "What is 368 times 4?\nMultiply 368 by 4 step by step.\nMultiply 4 by the digit in the ones place of 368, which is 8. We get 32. Write down 2 and carry over 3.\nMultiply 4 by the digit in the tens place of 368, which is 6. Add the carryover 3. We get 27. Write down 7 and carry over 2.\nMultiply 4 by the digit in the hundreds place of 368, which is 3. Add the carryover 2. We get 14. Write down 4 and carry over 1.\nWe finally get ",
+      "answer": 1472,
+      "expected_answer": 1472,
+      "raw_output": "1472.\n####\nThe answer is 368 times 4 is 1472."
+    },
+    {
+      "prompt": "What is 194 times 8?\nMultiply 194 by 8 step by step.\nMultiply 8 by the digit in the ones place of 194, which is 4. We get 32. Write down 2 and carry over 3.\nMultiply 8 by the digit in the tens place of 194, which is 9. Add the carryover 3. We get 75. Write down 5 and carry over 7.\nMultiply 8 by the digit in the hundreds place of 194, which is 1. Add the carryover 7. We get 15. Write down 5 and carry over 1.\nWe finally get ",
+      "answer": 1552,
+      "expected_answer": 1552,
+      "raw_output": "1552.\n####\nThe answer is 194 times 8 is 1552."
+    },
+    {
+      "prompt": "What is 211 times 3?\nMultiply 211 by 3 step by step.\nMultiply 3 by the digit in the ones place of 211, which is 1. We get 3. Write down 3 and carry over 0.\nMultiply 3 by the digit in the tens place of 211, which is 1. We get 3. Write down 3 and carry over 0.\nMultiply 3 by the digit in the hundreds place of 211, which is 2. We get 6. Write down 6 and carry over 0.\nWe finally get ",
+      "answer": 633,
+      "expected_answer": 633,
+      "raw_output": "633.\nTherefore, 211 times 3 is 633.\n####\nThe answer is 211 times 3 is 633."
+    },
+    {
+      "prompt": "What is 5 times 5?\nMultiply 5 by 5 step by step.\nMultiply 5 by the digit in the ones place of 5, which is 5. We get 25. Write down 5 and carry over 2.\nWe finally get ",
+      "answer": 25,
+      "expected_answer": 25,
+      "raw_output": "25."
+    },
+    {
+      "prompt": "What is 779 times 9?\nMultiply 779 by 9 step by step.\nMultiply 9 by the digit in the ones place of 779, which is 9. We get 81. Write down 1 and carry over 8.\nMultiply 9 by the digit in the tens place of 779, which is 7. Add the carryover 8. We get 71. Write down 1 and carry over 7.\nMultiply 9 by the digit in the hundreds place of 779, which is 7. Add the carryover 7. We get 70. Write down 0 and carry over 7.\nWe finally get ",
+      "answer": 7011,
+      "expected_answer": 7011,
+      "raw_output": "7011.\nTherefore, 779 times 9 is 7011.\n####\nThe answer is 779 times 9 is 7011."
+    },
+    {
+      "prompt": "What is 966 times 6?\nMultiply 966 by 6 step by step.\nMultiply 6 by the digit in the ones place of 966, which is 6. We get 36. Write down 6 and carry over 3.\nMultiply 6 by the digit in the tens place of 966, which is 6. Add the carryover 3. We get 39. Write down 9 and carry over 3.\nMultiply 6 by the digit in the hundreds place of 966, which is 9. Add the carryover 3. We get 57. Write down 7 and carry over 5.\nWe finally get ",
+      "answer": 5796,
+      "expected_answer": 5796,
+      "raw_output": "5796.\nTherefore, 966 times 6 is 5796.\n####\nThe answer is 966 times 6 is 5796."
+    },
+    {
+      "prompt": "What is 844 times 2?\nMultiply 844 by 2 step by step.\nMultiply 2 by the digit in the ones place of 844, which is 4. We get 8. Write down 8 and carry over 0.\nMultiply 2 by the digit in the tens place of 844, which is 4. We get 8. Write down 8 and carry over 0.\nMultiply 2 by the digit in the hundreds place of 844, which is 8. We get 16. Write down 6 and carry over 1.\nWe finally get ",
+      "answer": 1688,
+      "expected_answer": 1688,
+      "raw_output": "1688.\nTherefore, 844 times 2 is 1688.\n####\nThe answer is 844 times 2 is 1688."
+    },
+    {
+      "prompt": "What is 201 times 3?\nMultiply 201 by 3 step by step.\nMultiply 3 by the digit in the ones place of 201, which is 1. We get 3. Write down 3 and carry over 0.\nMultiply 3 by the digit in the tens place of 201, which is 0. We get 0. Write down 0 and carry over 0.\nMultiply 3 by the digit in the hundreds place of 201, which is 2. We get 6. Write down 6 and carry over 0.\nWe finally get ",
+      "answer": 603,
+      "expected_answer": 603,
+      "raw_output": "603."
+    },
+    {
+      "prompt": "What is 867 times 8?\nMultiply 867 by 8 step by step.\nMultiply 8 by the digit in the ones place of 867, which is 7. We get 56. Write down 6 and carry over 5.\nMultiply 8 by the digit in the tens place of 867, which is 6. Add the carryover 5. We get 53. Write down 3 and carry over 5.\nMultiply 8 by the digit in the hundreds place of 867, which is 8. Add the carryover 5. We get 69. Write down 9 and carry over 6.\nWe finally get ",
+      "answer": 6936,
+      "expected_answer": 6936,
+      "raw_output": "6936.\n####\nThe answer is 867 times 8 is 6936."
+    },
+    {
+      "prompt": "What is 112 times 7?\nMultiply 112 by 7 step by step.\nMultiply 7 by the digit in the ones place of 112, which is 2. We get 14. Write down 4 and carry over 1.\nMultiply 7 by the digit in the tens place of 112, which is 1. Add the carryover 1. We get 8. Write down 8 and carry over 0.\nMultiply 7 by the digit in the hundreds place of 112, which is 1. We get 7. Write down 7 and carry over 0.\nWe finally get ",
+      "answer": 784,
+      "expected_answer": 784,
+      "raw_output": "784.\nSo, 112 times 7 is 784."
+    },
+    {
+      "prompt": "What is 675 times 3?\nMultiply 675 by 3 step by step.\nMultiply 3 by the digit in the ones place of 675, which is 5. We get 15. Write down 5 and carry over 1.\nMultiply 3 by the digit in the tens place of 675, which is 7. Add the carryover 1. We get 22. Write down 2 and carry over 2.\nMultiply 3 by the digit in the hundreds place of 675, which is 6. Add the carryover 2. We get 20. Write down 0 and carry over 2.\nWe finally get ",
+      "answer": 2025,
+      "expected_answer": 2025,
+      "raw_output": "2025.\nTherefore, 675 times 3 is 2025.\n####\nThe answer is 675 times 3 is 2025."
+    },
+    {
+      "prompt": "What is 8 times 8?\nMultiply 8 by 8 step by step.\nMultiply 8 by the digit in the ones place of 8, which is 8. We get 64. Write down 4 and carry over 6.\nWe finally get ",
+      "answer": 64,
+      "expected_answer": 64,
+      "raw_output": "64.\nMultiply 8 by the digit in the tens place of 8, which is 8. We get 64. Add the carried over 6 to get 70. Write down 70.\nWe finally get "
+    },
+    {
+      "prompt": "What is 553 times 1?\nMultiply 553 by 1 step by step.\nMultiply 1 by the digit in the ones place of 553, which is 3. We get 3. Write down 3 and carry over 0.\nMultiply 1 by the digit in the tens place of 553, which is 5. We get 5. Write down 5 and carry over 0.\nMultiply 1 by the digit in the hundreds place of 553, which is 5. We get 5. Write down 5 and carry over 0.\nWe finally get ",
+      "answer": 553,
+      "expected_answer": 553,
+      "raw_output": "553."
+    },
+    {
+      "prompt": "What is 285 times 7?\nMultiply 285 by 7 step by step.\nMultiply 7 by the digit in the ones place of 285, which is 5. We get 35. Write down 5 and carry over 3.\nMultiply 7 by the digit in the tens place of 285, which is 8. Add the carryover 3. We get 59. Write down 9 and carry over 5.\nMultiply 7 by the digit in the hundreds place of 285, which is 2. Add the carryover 5. We get 19. Write down 9 and carry over 1.\nWe finally get ",
+      "answer": 2005,
+      "expected_answer": 1995,
+      "raw_output": "2005.\nSo, 285 times 7 is 2005."
+    },
+    {
+      "prompt": "What is 345 times 5?\nMultiply 345 by 5 step by step.\nMultiply 5 by the digit in the ones place of 345, which is 5. We get 25. Write down 5 and carry over 2.\nMultiply 5 by the digit in the tens place of 345, which is 4. Add the carryover 2. We get 22. Write down 2 and carry over 2.\nMultiply 5 by the digit in the hundreds place of 345, which is 3. Add the carryover 2. We get 17. Write down 7 and carry over 1.\nWe finally get ",
+      "answer": 1725,
+      "expected_answer": 1725,
+      "raw_output": "1725.\nTherefore, 345 times 5 is 1725.\n####\nThe answer is 345 times 5 is 1725."
+    },
+    {
+      "prompt": "What is 825 times 7?\nMultiply 825 by 7 step by step.\nMultiply 7 by the digit in the ones place of 825, which is 5. We get 35. Write down 5 and carry over 3.\nMultiply 7 by the digit in the tens place of 825, which is 2. Add the carryover 3. We get 17. Write down 7 and carry over 1.\nMultiply 7 by the digit in the hundreds place of 825, which is 8. Add the carryover 1. We get 57. Write down 7 and carry over 5.\nWe finally get ",
+      "answer": 5775,
+      "expected_answer": 5775,
+      "raw_output": "5775.\n####\nThe answer is 825 times 7 is 5775."
+    },
+    {
+      "prompt": "What is 914 times 4?\nMultiply 914 by 4 step by step.\nMultiply 4 by the digit in the ones place of 914, which is 4. We get 16. Write down 6 and carry over 1.\nMultiply 4 by the digit in the tens place of 914, which is 1. Add the carryover 1. We get 5. Write down 5 and carry over 0.\nMultiply 4 by the digit in the hundreds place of 914, which is 9. We get 36. Write down 6 and carry over 3.\nWe finally get ",
+      "answer": 3656,
+      "expected_answer": 3656,
+      "raw_output": "3656.\n####\nThe answer is 914 times 4 is 3656."
+    },
+    {
+      "prompt": "What is 795 times 2?\nMultiply 795 by 2 step by step.\nMultiply 2 by the digit in the ones place of 795, which is 5. We get 10. Write down 0 and carry over 1.\nMultiply 2 by the digit in the tens place of 795, which is 9. Add the carryover 1. We get 19. Write down 9 and carry over 1.\nMultiply 2 by the digit in the hundreds place of 795, which is 7. Add the carryover 1. We get 15. Write down 5 and carry over 1.\nWe finally get ",
+      "answer": 1590,
+      "expected_answer": 1590,
+      "raw_output": "1590.\nTherefore, 795 times 2 is 1590.\n####\nThe answer is 795 times 2 is 1590."
+    },
+    {
+      "prompt": "What is 946 times 4?\nMultiply 946 by 4 step by step.\nMultiply 4 by the digit in the ones place of 946, which is 6. We get 24. Write down 4 and carry over 2.\nMultiply 4 by the digit in the tens place of 946, which is 4. Add the carryover 2. We get 18. Write down 8 and carry over 1.\nMultiply 4 by the digit in the hundreds place of 946, which is 9. Add the carryover 1. We get 37. Write down 7 and carry over 3.\nWe finally get ",
+      "answer": 3784,
+      "expected_answer": 3784,
+      "raw_output": "3784.\n####\nThe answer is 946 times 4 is 3784."
+    },
+    {
+      "prompt": "What is 149 times 2?\nMultiply 149 by 2 step by step.\nMultiply 2 by the digit in the ones place of 149, which is 9. We get 18. Write down 8 and carry over 1.\nMultiply 2 by the digit in the tens place of 149, which is 4. Add the carryover 1. We get 9. Write down 9 and carry over 0.\nMultiply 2 by the digit in the hundreds place of 149, which is 1. We get 2. Write down 2 and carry over 0.\nWe finally get ",
+      "answer": 298,
+      "expected_answer": 298,
+      "raw_output": "298."
+    },
+    {
+      "prompt": "What is 138 times 9?\nMultiply 138 by 9 step by step.\nMultiply 9 by the digit in the ones place of 138, which is 8. We get 72. Write down 2 and carry over 7.\nMultiply 9 by the digit in the tens place of 138, which is 3. Add the carryover 7. We get 34. Write down 4 and carry over 3.\nMultiply 9 by the digit in the hundreds place of 138, which is 1. Add the carryover 3. We get 12. Write down 2 and carry over 1.\nWe finally get ",
+      "answer": 1242,
+      "expected_answer": 1242,
+      "raw_output": "1242.\n####\nThe answer is 138 times 9 is 1242."
+    }
+  ]
+}

@@ -44,9 +44,7 @@ uv run python scripts/train_boundless_das.py \
     --layer 20 \
     --epochs 1 \
     --batch-size 8 \
-    --eval-batch-size 1 \
     --gradient-accumulation-steps 2 \
-    --eval-steps 200 \
     --log-steps 50 \
     --output-dir outputs/boundless_das \
     --intervention-type "carry_over" \

@@ -437,17 +437,10 @@ def main():
     parser.add_argument("--intervention-type", type=str, choices=["carry_over", "write_down"], default=None)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=4, help="Training batch size (default 4)")
-    parser.add_argument(
-        "--eval-batch-size",
-        type=int,
-        default=None,
-        help="Batch size for validation/test. Default: same as --batch-size.",
-    )
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--boundary-lr", type=float, default=1e-2)
     parser.add_argument("--warmup-ratio", type=float, default=0.1)
     parser.add_argument("--gradient-accumulation-steps", type=int, default=4)
-    parser.add_argument("--eval-steps", type=int, default=200)
     parser.add_argument(
         "--log-steps",
         type=int,
@@ -516,7 +509,6 @@ def main():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     pad_id = tokenizer.pad_token_id
-    eval_batch_size = args.eval_batch_size or args.batch_size
     step_tag = str(args.step) if args.step is not None else "all"
     log_tag = f"[layer={args.layer} intervention_type={args.intervention_type} step={step_tag}]"
 
@@ -597,12 +589,6 @@ def main():
         train_ds, batch_size=args.batch_size, shuffle=True, collate_fn=collate,
         num_workers=0, pin_memory=False,
     )
-    val_loader = DataLoader(
-        val_ds, batch_size=eval_batch_size, collate_fn=collate, num_workers=0, pin_memory=False
-    )
-    test_loader = DataLoader(
-        test_ds, batch_size=eval_batch_size, collate_fn=collate, num_workers=0, pin_memory=False
-    )
 
     # Model (quiet load)
     print(f"Loading model {args.model_name} {log_tag}")
@@ -675,11 +661,22 @@ def main():
             positions = batch["intervention_positions"]
             # With batch_size=1 we pass one position; pyvene accepts {"sources->base": [pos]}
             unit_locations = {"sources->base": positions.tolist()}
-            _, counterfactual_outputs = intervenable(
-                {"input_ids": batch["input_ids"]},
-                [{"input_ids": batch["source_input_ids"]}],
-                unit_locations,
-            )
+            try:
+                _, counterfactual_outputs = intervenable(
+                    {"input_ids": batch["input_ids"]},
+                    [{"input_ids": batch["source_input_ids"]}],
+                    unit_locations,
+                )
+            except RuntimeError as e:
+                if "shape mismatch" in str(e):
+                    # _, counterfactual_outputs = model(
+                    #     input_ids=batch["input_ids"],
+                    #     return_dict=True,
+                    # )
+                    tqdm.write("Shape mismatch error during intervention; likely due to unexpected input lengths. Logging batch for debugging and skipping this batch.")
+                    continue
+                else:
+                    raise e
             logits = counterfactual_outputs.logits
             labels_b = batch["labels"]
             batch_result_mask = batch.get("result_mask")
@@ -805,56 +802,6 @@ def main():
                     },
                     step=total_step,
                 )
-            if (step + 1) % args.eval_steps == 0:
-                intervenable.eval()
-                val_iia_sum, val_n = 0.0, 0
-                with torch.no_grad():
-                    for v_batch in val_loader:
-                        for k, v in v_batch.items():
-                            if isinstance(v, torch.Tensor):
-                                v_batch[k] = v.to(device)
-                        bv = v_batch["input_ids"].shape[0]
-                        pos_v = v_batch["intervention_positions"].tolist()
-                        _, v_out = intervenable(
-                            {"input_ids": v_batch["input_ids"]},
-                            [{"input_ids": v_batch["source_input_ids"]}],
-                            {"sources->base": pos_v},
-                        )
-                        v_logits = v_out.logits
-                        v_result_mask = v_batch.get("result_mask")
-                        if args.iia_resultwise and v_result_mask is not None:
-                            val_iia = compute_resultwise_iia(
-                                v_logits,
-                                v_batch["labels"],
-                                v_result_mask,
-                                tokenizer,
-                            )
-                        else:
-                            val_iia = compute_iia(
-                                v_logits,
-                                v_batch["labels"],
-                                last_token_only=True,
-                                result_mask=v_result_mask,
-                                example_wise=args.iia_examplewise,
-                            )
-                        val_iia_sum += val_iia * bv
-                        val_n += bv
-
-                        # Free large tensors between validation batches to keep memory usage low.
-                        del v_logits, v_out
-                        if device == "cuda":
-                            torch.cuda.empty_cache()
-                val_iia = val_iia_sum / val_n if val_n else 0.0
-                pbar.write(f"  [Val] IIA: {val_iia:.4f} {log_tag}")
-                if use_wandb:
-                    wandb.log(
-                        {
-                            "val/iia": float(val_iia),
-                            "val/epoch": float(epoch),
-                        },
-                        step=total_step,
-                    )
-                intervenable.model.train()
         train_iia_epoch = epoch_iia_sum / epoch_iia_count if epoch_iia_count else 0.0
         mean_loss_epoch = epoch_loss_sum / epoch_loss_count if epoch_loss_count else 0.0
         last_train_iia = train_iia_epoch
@@ -869,134 +816,7 @@ def main():
                 step=total_step,
             )
 
-    # Test split IIA
-    print(f"Evaluating IIA on test split {log_tag}...")
-    intervenable.eval()
-    test_iia_sum, test_n = 0.0, 0
-    test_debug_batches_logged = 0
-    with torch.no_grad():
-        for batch in tqdm(test_loader, desc="Test"):
-            for k, v in batch.items():
-                if isinstance(v, torch.Tensor):
-                    batch[k] = v.to(device)
-            bn = batch["input_ids"].shape[0]
-            pos_t = batch["intervention_positions"].tolist()
-            _, t_out = intervenable(
-                {"input_ids": batch["input_ids"]},
-                [{"input_ids": batch["source_input_ids"]}],
-                {"sources->base": pos_t},
-            )
-            t_logits = t_out.logits
-            t_result_mask = batch.get("result_mask")
-            if args.iia_resultwise and t_result_mask is not None:
-                test_iia = compute_resultwise_iia(
-                    t_logits,
-                    batch["labels"],
-                    t_result_mask,
-                    tokenizer,
-                )
-            else:
-                test_iia = compute_iia(
-                    t_logits,
-                    batch["labels"],
-                    last_token_only=True,
-                    result_mask=t_result_mask,
-                    example_wise=args.iia_examplewise,
-                )
-            test_iia_sum += test_iia * bn
-            test_n += bn
-
-            # For debugging: log the full contents of the first few test batches so we can
-            # see exactly what is being evaluated and what the model predicts.
-            if test_debug_batches_logged < 4:
-                positions_t = batch["intervention_positions"]
-                for ex_idx in range(bn):
-                    interv_pos = int(positions_t[ex_idx].item())
-                    base_ids = batch["input_ids"][ex_idx].detach().cpu()
-                    source_ids = batch["source_input_ids"][ex_idx].detach().cpu()
-
-                    # Prefer using the explicit result_mask when present; otherwise
-                    # fall back to all valid label positions.
-                    mask_i = None
-                    result_indices: List[int] = []
-                    if t_result_mask is not None:
-                        mask_i = t_result_mask[ex_idx].bool()
-                        if mask_i.any():
-                            idx = mask_i.nonzero(as_tuple=False).view(-1)
-                            result_indices = idx.tolist()
-                            actual_ids = batch["labels"][ex_idx][idx].detach().cpu()
-                            pred_ids = torch.argmax(
-                                t_logits[ex_idx][idx], dim=-1
-                            ).detach().cpu()
-                        else:
-                            mask_i = None
-
-                    if mask_i is None:
-                        valid = (batch["labels"][ex_idx] != -100).nonzero(as_tuple=False).view(-1)
-                        if valid.numel() > 0:
-                            idx = valid
-                            result_indices = idx.tolist()
-                            actual_ids = batch["labels"][ex_idx][idx].detach().cpu()
-                            pred_ids = torch.argmax(
-                                t_logits[ex_idx][idx], dim=-1
-                            ).detach().cpu()
-                        else:
-                            # Extreme fallback: just use final timestep.
-                            last_idx = torch.tensor([t_logits.size(1) - 1], device=t_logits.device)
-                            result_indices = [int(last_idx.item())]
-                            actual_ids = batch["labels"][ex_idx][last_idx].detach().cpu()
-                            pred_ids = torch.argmax(
-                                t_logits[ex_idx][last_idx], dim=-1
-                            ).detach().cpu()
-
-                    base_text = tokenizer.decode(
-                        base_ids, skip_special_tokens=True
-                    )
-                    source_text = tokenizer.decode(
-                        source_ids, skip_special_tokens=True
-                    )
-                    actual_text = tokenizer.decode(
-                        actual_ids, skip_special_tokens=True
-                    )
-                    pred_text = tokenizer.decode(
-                        pred_ids, skip_special_tokens=True
-                    )
-
-                    debug_lines = [
-                        "",
-                        "[DEBUG BoundlessDAS test sample]",
-                        f"{log_tag} example={ex_idx}",
-                        f"Intervention position (token index in base): {interv_pos}",
-                        f"Result label indices (debug focus positions): {result_indices}",
-                        "Base prompt (truncated):",
-                        base_text[:512],
-                        "Source prompt (truncated):",
-                        source_text[:512],
-                        f"Result (counterfactual labels): {actual_text}",
-                        f"Result (predicted after intervention): {pred_text}",
-                    ]
-                    print("\n".join(debug_lines), flush=True)
-                test_debug_batches_logged += 1
-
-            # Free large tensors between test batches to keep memory usage low.
-            del t_logits, t_out
-            if device == "cuda":
-                torch.cuda.empty_cache()
-    test_iia = test_iia_sum / test_n if test_n else 0.0
-    print(f"Test IIA: {test_iia:.4f} {log_tag}")
-    if use_wandb:
-        wandb.log(
-            {
-                "test/iia": float(test_iia),
-                "test/n_examples": float(test_n),
-            },
-            step=total_step,
-        )
-    with open(Path(args.output_dir) / "test_iia.json", "w") as f:
-        json.dump(
-            {"test_iia": test_iia, "n_test": test_n, "layer": args.layer, "intervention_type": args.intervention_type, "step": args.step},
-            f, indent=2,
-        )
+    # Save intervention model for later evaluation
     intervenable.save(Path(args.output_dir) / "intervention")
     print(f"Saved intervention to {args.output_dir}/intervention {log_tag}")
 
@@ -1010,7 +830,6 @@ def main():
         "n_train": n_train,
         "train_iia": last_train_iia if last_train_iia is not None else "",
         "mean_loss": last_mean_loss if last_mean_loss is not None else "",
-        "test_iia": test_iia,
         "output_dir": args.output_dir,
     }
     file_exists = results_csv.exists() and results_csv.stat().st_size > 0

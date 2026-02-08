@@ -31,7 +31,7 @@ LAYER=${LAYERS[$layer_idx]}
 TYPE=${TYPES[$type_idx]}
 STEP=$step_idx
 STEP_NAME=${STEP_NAMES[$step_idx]}
-OUTPUT_DIR="outputs/boundless_das_layer${LAYER}_${TYPE}_step${STEP}"
+OUTPUT_DIR="outputs/5_epochs/boundless_das_layer${LAYER}_${TYPE}_step${STEP}"
 
 echo "Job ID: $SLURM_JOB_ID Array ID: $SLURM_ARRAY_TASK_ID"
 echo "Node: $SLURM_NODELIST"
@@ -50,11 +50,9 @@ uv run python scripts/train_boundless_das.py \
     --data-dir datasets/boundless_das \
     --model-name Qwen/Qwen2-7B \
     --layer "$LAYER" \
-    --epochs 1 \
+    --epochs 5 \
     --batch-size 8 \
-    --eval-batch-size 1 \
     --gradient-accumulation-steps 2 \
-    --eval-steps 100 \
     --log-steps 50 \
     --output-dir "$OUTPUT_DIR" \
     --intervention-type "$TYPE" \

@@ -166,6 +166,11 @@ def find_carry_changers_no_propagation(x: int, k: int, max_digits: int = 3):
     # Convert to digits using digits() function (least significant first: [ones, tens, hundreds, ...])
     x_digits = digits(x, size=max_digits)
     orig_carry = compute_carry(x_digits, k)
+    # Also track the write-down (residual) values so that we can enforce
+    # "carry changes but write-down stays the same" at the intervened step.
+    # This matches the requirement that only the carry-over value should differ
+    # in the step line (i.e., "Write down X" should not change).
+    orig_write_down = compute_write_down_values(x_digits, k)
 
     results = {i: [] for i in range(max_digits)}
 
@@ -178,6 +183,7 @@ def find_carry_changers_no_propagation(x: int, k: int, max_digits: int = 3):
             x_new_digits = x_digits.copy()
             x_new_digits[idx] = new_digit
             new_carry = compute_carry(x_new_digits, k)
+            new_write_down = compute_write_down_values(x_new_digits, k)
             
             # Only keep if carry at this step changes AND all other steps unchanged
             # step 0 = ones place (least significant), step max_digits-1 = most significant
@@ -185,6 +191,11 @@ def find_carry_changers_no_propagation(x: int, k: int, max_digits: int = 3):
                 if (new_carry[step] != orig_carry[step] and 
                     new_carry[step+1:] == orig_carry[step+1:] and 
                     new_carry[:step] == orig_carry[:step]):
+                    # Additionally require that the write-down value at the intervened
+                    # step stays identical. This prevents carry interventions from also
+                    # changing the "Write down ..." token in the same line.
+                    if new_write_down[step] != orig_write_down[step]:
+                        continue
                     # Convert digits back to number
                     x_new_digits_reversed = x_new_digits[::-1]
                     # Remove leading zeros
@@ -208,10 +219,14 @@ def find_carry_changers_no_propagation(x: int, k: int, max_digits: int = 3):
         if new_k == k:
             continue
         new_carry = compute_carry(x_digits, new_k)
+        new_write_down = compute_write_down_values(x_digits, new_k)
         for step in range(max_digits):
             if (new_carry[step] != orig_carry[step] and 
                 new_carry[step+1:] == orig_carry[step+1:] and 
                 new_carry[:step] == orig_carry[:step]):
+                # Same constraint as above: keep write-down fixed at the intervened step.
+                if new_write_down[step] != orig_write_down[step]:
+                    continue
                 # x stays the same, so digit count is automatically preserved
                 results[step].append({
                     'new_number': x,
@@ -266,13 +281,26 @@ def find_write_down_changers_no_propagation(x: int, k: int, max_digits: int = 3)
             new_carry = compute_carry(x_new_digits, k)
             new_write_down = compute_write_down_values(x_new_digits, k)
             
-            # Only keep if write-down value changes BUT carry stays the same
-            # AND all other steps unchanged
+            # Only keep if *exactly one* step changes its write-down value, and
+            # that step's carry stays the same, with carries identical at all
+            # steps. This enforces: for a given step we flip the write-down,
+            # but every other write-down and all carries remain unchanged.
             for step in range(max_digits):
                 if (new_write_down[step] != orig_write_down[step] and 
                     new_carry[step] == orig_carry[step] and  # Carry must stay the same
                     new_carry[step+1:] == orig_carry[step+1:] and 
                     new_carry[:step] == orig_carry[:step]):
+                    # Check all *other* steps: write-down and carry must match.
+                    ok = True
+                    for j in range(max_digits):
+                        if j == step:
+                            continue
+                        if (new_write_down[j] != orig_write_down[j] or
+                            new_carry[j] != orig_carry[j]):
+                            ok = False
+                            break
+                    if not ok:
+                        continue
                     # Convert digits back to number
                     x_new_digits_reversed = x_new_digits[::-1]
                     # Remove leading zeros
@@ -302,6 +330,18 @@ def find_write_down_changers_no_propagation(x: int, k: int, max_digits: int = 3)
                 new_carry[step] == orig_carry[step] and  # Carry must stay the same
                 new_carry[step+1:] == orig_carry[step+1:] and 
                 new_carry[:step] == orig_carry[:step]):
+                # Again enforce that all non-intervened steps are identical in both
+                # their write-down values and carries.
+                ok = True
+                for j in range(max_digits):
+                    if j == step:
+                        continue
+                    if (new_write_down[j] != orig_write_down[j] or
+                        new_carry[j] != orig_carry[j]):
+                        ok = False
+                        break
+                if not ok:
+                    continue
                 # x stays the same, so digit count is automatically preserved
                 results[step].append({
                     'new_number': x,
